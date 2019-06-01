@@ -6,7 +6,7 @@ val hamkrestVersion: String? by extra
 val guiceVersion: String? by extra
 val kotlinGuiceVersion: String? by extra
 val mockkVersion: String? by extra
-
+val guavaVersion="11.0.2"
 dependencies {
     compile(project(":library"))
     compile(project(":courseapp-app"))
@@ -18,5 +18,7 @@ dependencies {
     testCompile("com.authzee.kotlinguice4", "kotlin-guice", kotlinGuiceVersion)
 
     testImplementation("io.mockk", "mockk", mockkVersion)
+
+    compile( "com.google.guava:guava: version=$guavaVersion")
 }
 
