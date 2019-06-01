@@ -4,39 +4,37 @@ import il.ac.technion.cs.softwaredesign.storage.api.ITokenManager
 import il.ac.technion.cs.softwaredesign.storage.users.IUserStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.INVALID_USER_ID
 import java.security.SecureRandom
+import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class TokenManager @Inject constructor(private val userStorage: IUserStorage) : ITokenManager {
 
-    override fun isTokenValid(token: String): Boolean {
-        val userId = userStorage.getUserIdByToken(token) ?: return false
-        if (userId == INVALID_USER_ID) return false
-        return true
+    override fun isTokenValid(token: String): CompletableFuture<Boolean> {
+        return userStorage.getUserIdByToken(token).thenApply { if(it==null) null else it != INVALID_USER_ID }
     }
 
-    override fun getUserIdByToken(token: String): Long? {
-        val userId = userStorage.getUserIdByToken(token)
-        if (userId == null || userId == INVALID_USER_ID) return null
-        return userId
+    override fun getUserIdByToken(token: String): CompletableFuture<Long?> {
+        return userStorage.getUserIdByToken(token)
+                .thenApply {  if (it == null || it == INVALID_USER_ID)  null else it }
     }
 
-    override fun assignTokenToUserId(userId: Long): String {
+    override fun assignTokenToUserId(userId: Long): CompletableFuture<String> {
         if (userId == INVALID_USER_ID) throw IllegalArgumentException("User id is not valid")
         val token = generateValidUserToken()
-        userStorage.setUserIdToToken(token, userId)
-        return token
+        return userStorage.setUserIdToToken(token, userId).thenApply { token }
+
     }
 
 
-    override fun invalidateUserToken(token: String) {
-        getUserIdByToken(token) ?: throw java.lang.IllegalArgumentException("token does not exist")
-        userStorage.setUserIdToToken(token, INVALID_USER_ID)
+    override fun invalidateUserToken(token: String):CompletableFuture<Unit> {
+        return getUserIdByToken(token).thenApply { it ?: throw java.lang.IllegalArgumentException("token does not exist") }
+                .thenCompose { userStorage.setUserIdToToken(token, INVALID_USER_ID)  }
     }
 
-    private fun isTokenUnique(token: String): Boolean {
-        return getUserIdByToken(token) == null
+    private fun isTokenUnique(token: String): CompletableFuture<Boolean> {
+        return getUserIdByToken(token).thenApply { it==null }
     }
 
     /**
@@ -63,7 +61,7 @@ class TokenManager @Inject constructor(private val userStorage: IUserStorage) : 
                 break
             }
             it += 1
-        } while (!isTokenUnique(token))
+        } while (!isTokenUnique(token)) //TODO: fix
         return token
     }
 }

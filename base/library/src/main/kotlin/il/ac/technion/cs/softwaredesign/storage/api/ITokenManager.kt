@@ -1,5 +1,7 @@
 package il.ac.technion.cs.softwaredesign.storage.api
 
+import java.util.concurrent.CompletableFuture
+
 interface ITokenManager {
     /**
      * Check if token is valid
@@ -7,13 +9,13 @@ interface ITokenManager {
      * @param token String
      * @return Boolean
      */
-    fun isTokenValid(token : String) : Boolean
+    fun isTokenValid(token : String) : CompletableFuture<Boolean>
     /**
      * Get the username that been assigned to the token
      * @param token String the token to search for in the system
      * @return  user id or null if token is not valid
      */
-    fun getUserIdByToken(token: String) : Long?
+    fun getUserIdByToken(token: String) : CompletableFuture<Long?>
 
     /**
      * Generate a new valid token and assign it to user
@@ -21,13 +23,13 @@ interface ITokenManager {
      * @throws IllegalArgumentException if userId is not valid
      * @return token has been assigned to user
      */
-    fun assignTokenToUserId(userId: Long) : String
+    fun assignTokenToUserId(userId: Long) : CompletableFuture<String>
 
     /**
      * Invalidate user token
      * @param token String
      * @throws IllegalArgumentException if token does not belong to any user
      */
-    fun invalidateUserToken(token : String)
+    fun invalidateUserToken(token : String): CompletableFuture<Unit>
 
 }

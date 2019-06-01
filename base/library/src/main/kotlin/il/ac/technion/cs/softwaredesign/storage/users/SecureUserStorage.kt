@@ -12,144 +12,76 @@ import javax.inject.Singleton
 
 @Singleton
 class SecureUserStorage @Inject constructor(
-        @MemberIdStorage private val userIdStorage:SecureStorage,
-        @MemberDetailsStorage private val userDetailsStorage:SecureStorage,
-        @AuthenticationStorage private val tokenStorage:SecureStorage) : IUserStorage {
+        @MemberIdStorage private val userIdStorage: SecureStorage,
+        @MemberDetailsStorage private val userDetailsStorage: SecureStorage,
+        @AuthenticationStorage private val tokenStorage: SecureStorage) : IUserStorage {
 
     override fun getUserIdByUsername(usernameKey: String): CompletableFuture<Long?> {
         return userIdStorage.read(usernameKey.toByteArray()).thenApply { userId ->
-                if (userId == null ) null // if username does not exist
-                else ConversionUtils.bytesToLong(userId)
-            }
+            if (userId == null) null // if username does not exist
+            else ConversionUtils.bytesToLong(userId)
+        }
     }
 
     override fun setUserIdToUsername(usernameKey: String, userIdValue: Long): CompletableFuture<Unit> {
         return userIdStorage.write(usernameKey.toByteArray(), ConversionUtils.longToBytes(userIdValue))
-//        return usernameKey.thenCompose { username ->
-//            userIdValue.thenCompose { userId ->
-//                if (username != null && userId != null)
-//                    userIdStorage.write(username.toByteArray(),ConversionUtils.longToBytes(userId))
-//                else CompletableFuture.supplyAsync{ Unit }
-//            }
-//        }
     }
 
-    override fun getUserIdByToken(tokenKey: CompletableFuture<String?>): CompletableFuture<Long?> {
-        return tokenKey.thenCompose<Long?> { token ->
-            if (token == null) {
-                CompletableFuture.supplyAsync{ null }
-            } else {
-                tokenStorage.read(token.toByteArray()).thenApply { userId ->
-                    if (userId == null ) null // if token does not exist
-                    else ConversionUtils.bytesToLong(userId)
-                }
-            }
+    override fun getUserIdByToken(tokenKey: String): CompletableFuture<Long?> {
+        val userIdByteArray = tokenStorage.read(tokenKey.toByteArray())
+        return userIdByteArray.thenApply { if (it == null) null else ConversionUtils.bytesToLong(it) }
+    }
+
+    override fun setUserIdToToken(tokenKey: String, userIdValue: Long): CompletableFuture<Unit> {
+        return tokenStorage.write(tokenKey.toByteArray(), ConversionUtils.longToBytes(userIdValue))
+    }
+
+    override fun getPropertyStringByUserId(userIdKey: Long, property: String): CompletableFuture<String?> {
+        val key = createPropertyKey(userIdKey, property)
+        val value = userDetailsStorage.read(key)
+        return value.thenApply { if (it == null) null else String(it) }
+    }
+
+    override fun setPropertyStringToUserId(userIdKey: Long, property: String, value: String): CompletableFuture<Unit> {
+        val key = createPropertyKey(userIdKey, property)
+        return userDetailsStorage.write(key, value.toByteArray())
+    }
+
+    override fun getPropertyLongByUserId(userIdKey: Long, property: String): CompletableFuture<Long?> {
+        val key = createPropertyKey(userIdKey, property)
+        val value = userDetailsStorage.read(key)
+        return value.thenApply { if (it == null) null else ConversionUtils.bytesToLong(it) }
+    }
+
+    override fun setPropertyLongToUserId(userIdKey: Long, property: String, value: Long): CompletableFuture<Unit> {
+        val key = createPropertyKey(userIdKey, property)
+        return userDetailsStorage.write(key, ConversionUtils.longToBytes(value))
+    }
+
+    override fun getPropertyListByUserId(userIdKey: Long, property: String): CompletableFuture<List<Long>?> {
+        val key = createPropertyKey(userIdKey, property)
+        val value = userDetailsStorage.read(key)
+        return value.thenApply {
+            if (it == null) null else delimitedByteArrayToList(it)
         }
     }
 
-    override fun setUserIdToToken(tokenKey: CompletableFuture<String?>, userIdValue: CompletableFuture<Long?>): CompletableFuture<Unit> {
-        return tokenKey.thenCompose { token ->
-            userIdValue.thenCompose { userId ->
-                if (token != null && userId != null)
-                    tokenStorage.write(token.toByteArray(),ConversionUtils.longToBytes(userId))
-                else CompletableFuture.supplyAsync{ Unit }
-            }
-        }
+    private fun delimitedByteArrayToList(byteArray: ByteArray): List<Long> {
+        val stringValue = String(byteArray)
+        if (stringValue == "") return emptyList()
+        return stringValue.split(DELIMITER).map { it.toLong() }.toMutableList()
     }
 
-    override fun getPropertyStringByUserId(userIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>): CompletableFuture<String?> {
-        return createPropertyKey(userIdKey, property).thenCompose<ByteArray?> { key ->
-            if (key == null) null // userId is null
-            else userDetailsStorage.read(key)
-        }.thenApply { byteArray ->
-            if (byteArray == null) null else String(byteArray) // userId does not exist
-        }
+    override fun setPropertyListToUserId(userIdKey: Long, property: String, listValue: List<Long?>):
+            CompletableFuture<Unit> {
+        val key = createPropertyKey(userIdKey, property)
+        val value = listValue.joinToString(DELIMITER)
+        return userDetailsStorage.write(key, value.toByteArray())
     }
 
-    override fun setPropertyStringToUserId(userIdKey: CompletableFuture<Long?>,
-                                           property: CompletableFuture<String?>,
-                                           value: CompletableFuture<String?>): CompletableFuture<Unit> {
-        return createPropertyKey(userIdKey, property).thenCompose { propertyKey ->
-            if (propertyKey == null) null // should not get here
-            else {
-                value.thenCompose { valueToWrite ->
-                    if (valueToWrite == null) null // value should not be null
-                    else userDetailsStorage.write(propertyKey, valueToWrite.toByteArray())
-                }
-            }
-        }
-    }
-
-    override fun getPropertyLongByUserId(userIdKey: CompletableFuture<Long?>,
-                                         property: CompletableFuture<String?>): CompletableFuture<Long?> {
-        return createPropertyKey(userIdKey, property).thenCompose { propertyKey ->
-            if (propertyKey == null) null // should not get here
-            else {
-                userDetailsStorage.read(propertyKey).thenApply { byteArray ->
-                    if (byteArray == null) null else ConversionUtils.bytesToLong(byteArray) // userId does not exist
-                }
-            }
-        }
-    }
-
-    override fun setPropertyLongToUserId(userIdKey: CompletableFuture<Long?>,
-                                         property: CompletableFuture<String?>,
-                                         value: CompletableFuture<Long?>) : CompletableFuture<Unit> {
-        return createPropertyKey(userIdKey, property).thenCompose { propertyKey ->
-            if (propertyKey == null) null // should not get here
-            else {
-                value.thenCompose { valueToWrite ->
-                    if (valueToWrite == null) null // value should not be null
-                    else userDetailsStorage.write(propertyKey, ConversionUtils.longToBytes(valueToWrite))
-                }
-            }
-        }
-    }
-
-    override fun getPropertyListByUserId(userIdKey: CompletableFuture<Long?>,
-                                         property: CompletableFuture<String?>): CompletableFuture<List<Long>?> {
-        return createPropertyKey(userIdKey, property).thenCompose { propertyKey ->
-            if (propertyKey == null) null
-            else {
-                userDetailsStorage.read(propertyKey).thenApply { list ->
-                    if (list == null) null // user id does not exist
-                    else {
-                        val stringValue = String(list)
-                        if (stringValue == "") listOf<Long>()
-                        stringValue.split(DELIMITER).map { it.toLong() }.toList()
-                    }
-                }
-            }
-        }
-    }
-
-    override fun setPropertyListToUserId(userIdKey: CompletableFuture<Long?>,
-                                         property: CompletableFuture<String?>,
-                                         listValue: CompletableFuture<List<Long?>>): CompletableFuture<Unit> {
-        return createPropertyKey(userIdKey, property).thenCompose { propertyKey ->
-            if (propertyKey == null) null // should not get here
-            else {
-                listValue.thenCompose { valueToWrite ->
-                    if (valueToWrite == null) null // value should not be null
-                    else {
-                        val value = valueToWrite.joinToString(DELIMITER)
-                        userDetailsStorage.write(propertyKey, value.toByteArray())
-                    }
-                }
-            }
-        }
-    }
-
-    private fun createPropertyKey(userIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>) : CompletableFuture<ByteArray?>{
-        return userIdKey.thenCombine<String?, ByteArray?>(property
-        ) { userId, propertyVal ->
-            if (userId != null && propertyVal != null) {
-                val userIdByteArray = ConversionUtils.longToBytes(userId)
-                val keySuffixByteArray = "$DELIMITER$propertyVal".toByteArray()
-                userIdByteArray + keySuffixByteArray
-            } else {
-                null
-            }
-        }
+    private fun createPropertyKey(userId: Long, property: String): ByteArray {
+        val userIdByteArray = ConversionUtils.longToBytes(userId)
+        val keySuffixByteArray = "$DELIMITER$property".toByteArray()
+        return userIdByteArray + keySuffixByteArray
     }
 }

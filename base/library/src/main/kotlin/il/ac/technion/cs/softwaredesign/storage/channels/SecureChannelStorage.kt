@@ -15,113 +15,62 @@ class SecureChannelStorage
 @Inject constructor(@ChannelIdStorage private val channelIdsStorage: SecureStorage,
                     @ChannelDetailsStorage private val channelDetailsStorage: SecureStorage) : IChannelStorage {
 
-    override fun getChannelIdByChannelName(channelName: CompletableFuture<String?>): CompletableFuture<Long?> {
-        return channelName.thenCompose<Long?> { channel ->
-            if (channel == null) CompletableFuture.supplyAsync{ null } // if usernameKey is null
-            else channelIdsStorage.read(channel.toByteArray()).thenApply { userId ->
-                if (userId == null ) null // if username does not exist
-                else ConversionUtils.bytesToLong(userId)
-            }
+    override fun getChannelIdByChannelName(channelName: String): CompletableFuture<Long?> {
+        val channelIdByteArray = channelIdsStorage.read(channelName.toByteArray())
+        return channelIdByteArray.thenApply { if (it == null) null else ConversionUtils.bytesToLong(it) }
+    }
+
+    override fun setChannelIdToChannelName(channelNameKey: String, channelId: Long): CompletableFuture<Unit> {
+        return channelIdsStorage.write(channelNameKey.toByteArray(), ConversionUtils.longToBytes(channelId))
+    }
+
+    override fun getPropertyStringByChannelId(channelIdKey: Long,
+                                              property: String): CompletableFuture<String?> {
+        val key = createPropertyKey(channelIdKey, property)
+        val value = channelDetailsStorage.read(key)
+        return value.thenApply { if (it == null) null else String(it) }
+    }
+
+    override fun setPropertyStringToChannelId(channelIdKey: Long, property: String, value: String): CompletableFuture<Unit> {
+        val key = createPropertyKey(channelIdKey, property)
+        return channelDetailsStorage.write(key, value.toByteArray())
+    }
+
+    override fun getPropertyLongByChannelId(channelIdKey: Long, property: String): CompletableFuture<Long?> {
+        val key = createPropertyKey(channelIdKey, property)
+        val value = channelDetailsStorage.read(key)
+        return value.thenApply { if (it == null) null else ConversionUtils.bytesToLong(it) }
+    }
+
+    override fun setPropertyLongToChannelId(channelIdKey: Long, property: String, value: Long): CompletableFuture<Unit> {
+        val key = createPropertyKey(channelIdKey, property)
+        return channelDetailsStorage.write(key, ConversionUtils.longToBytes(value))
+    }
+
+    override fun getPropertyListByChannelId(channelIdKey: Long, property: String): CompletableFuture<List<Long>?> {
+        val key = createPropertyKey(channelIdKey, property)
+        val value = channelDetailsStorage.read(key)
+        return value.thenApply {
+            if (it == null) null else delimitedByteArrayToList(it)
         }
     }
 
-    override fun setChannelIdToChannelName(channelNameKey: CompletableFuture<String?>,
-                                           channelId: CompletableFuture<Long?>): CompletableFuture<Unit> {
-        return channelNameKey.thenCompose { channelName ->
-            channelId.thenCompose { channelIdVal ->
-                if (channelName != null && channelIdVal != null)
-                    channelIdsStorage.write(channelName.toByteArray(),ConversionUtils.longToBytes(channelIdVal))
-                else CompletableFuture.supplyAsync{ Unit }
-            }
-        }
+    private fun delimitedByteArrayToList(byteArray: ByteArray): MutableList<Long> {
+        val stringValue = String(byteArray)
+        if (stringValue == "") emptyList<Long>()
+        return stringValue.split(DELIMITER).map { it.toLong() }.toMutableList()
     }
 
-    override fun getPropertyStringByChannelId(channelIdKey: CompletableFuture<Long?>,
-                                              property: CompletableFuture<String?>): CompletableFuture<String?> {
-        return createPropertyKey(channelIdKey, property).thenCompose<ByteArray?> { key ->
-            if (key == null) null // userId is null
-            else channelDetailsStorage.read(key)
-        }.thenApply { byteArray ->
-            if (byteArray == null) null else String(byteArray) // userId does not exist
-        }
+
+    override fun setPropertyListToChannelId(channelIdKey: Long, property: String, listValue: List<Long>): CompletableFuture<Unit> {
+        val key = createPropertyKey(channelIdKey, property)
+        val value = listValue.joinToString(DELIMITER)
+        return channelDetailsStorage.write(key, value.toByteArray())
     }
 
-    override fun setPropertyStringToChannelId(channelIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>, value: CompletableFuture<String?>): CompletableFuture<Unit> {
-        return createPropertyKey(channelIdKey, property).thenCompose { propertyKey ->
-            if (propertyKey == null) null // should not get here
-            else {
-                value.thenCompose { valueToWrite ->
-                    if (valueToWrite == null) null // value should not be null
-                    else channelDetailsStorage.write(propertyKey, valueToWrite.toByteArray())
-                }
-            }
-        }
-    }
-
-    override fun getPropertyLongByChannelId(channelIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>): CompletableFuture<Long?> {
-        return createPropertyKey(channelIdKey, property).thenCompose { propertyKey ->
-            if (propertyKey == null) null // should not get here
-            else {
-                channelDetailsStorage.read(propertyKey).thenApply { byteArray ->
-                    if (byteArray == null) null else ConversionUtils.bytesToLong(byteArray) // userId does not exist
-                }
-            }
-        }
-    }
-
-    override fun setPropertyLongToChannelId(channelIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>, value: CompletableFuture<Long?>): CompletableFuture<Unit> {
-        return createPropertyKey(channelIdKey, property).thenCompose { propertyKey ->
-            if (propertyKey == null) null // should not get here
-            else {
-                value.thenCompose { valueToWrite ->
-                    if (valueToWrite == null) null // value should not be null
-                    else channelDetailsStorage.write(propertyKey, ConversionUtils.longToBytes(valueToWrite))
-                }
-            }
-        }
-    }
-
-    override fun getPropertyListByChannelId(channelIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>): CompletableFuture<List<Long>?> {
-        return createPropertyKey(channelIdKey, property).thenCompose { propertyKey ->
-            if (propertyKey == null) null
-            else {
-                channelDetailsStorage.read(propertyKey).thenApply { list ->
-                    if (list == null) null // user id does not exist
-                    else {
-                        val stringValue = String(list)
-                        if (stringValue == "") listOf<Long>()
-                        stringValue.split(DELIMITER).map { it.toLong() }.toList()
-                    }
-                }
-            }
-        }
-    }
-
-    override fun setPropertyListToChannelId(channelIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>, listValue: CompletableFuture<List<Long>>): CompletableFuture<Unit> {
-        return createPropertyKey(channelIdKey, property).thenCompose { propertyKey ->
-            if (propertyKey == null) null // should not get here
-            else {
-                listValue.thenCompose { valueToWrite ->
-                    if (valueToWrite == null) null // value should not be null
-                    else {
-                        val value = valueToWrite.joinToString(DELIMITER)
-                        channelDetailsStorage.write(propertyKey, value.toByteArray())
-                    }
-                }
-            }
-        }
-    }
-
-    private fun createPropertyKey(channelIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>) : CompletableFuture<ByteArray?>{
-        return channelIdKey.thenCombine<String?, ByteArray?>(property
-        ) { channelId, propertyVal ->
-            if (channelId != null && propertyVal != null) {
-                val channelIdByteArray = ConversionUtils.longToBytes(channelId)
-                val keySuffixByteArray = "$DELIMITER$propertyVal".toByteArray()
-                channelIdByteArray + keySuffixByteArray
-            } else {
-                null
-            }
-        }
+    private fun createPropertyKey(channelId: Long, property: String): ByteArray {
+        val channelIdByteArray = ConversionUtils.longToBytes(channelId)
+        val keySuffixByteArray = "$DELIMITER$property".toByteArray()
+        return channelIdByteArray + keySuffixByteArray
     }
 }

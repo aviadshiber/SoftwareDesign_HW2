@@ -39,7 +39,7 @@ interface IUserManager {
      * @throws IllegalArgumentException throws if user id does not exist in the system
      * @return the user name
      */
-    fun getUsernameById(userId:Long):String
+    fun getUsernameById(userId:Long): CompletableFuture<String>
 
     /**
      * gets the user privilege
@@ -47,7 +47,7 @@ interface IUserManager {
      * @throws IllegalArgumentException throws if user id does not exist in the system
      * @return the user privilege
      */
-    fun getUserPrivilege(userId:Long): PrivilegeLevel
+    fun getUserPrivilege(userId:Long): CompletableFuture<PrivilegeLevel>
 
     /**
      * gets the user status
@@ -55,7 +55,7 @@ interface IUserManager {
      * @throws IllegalArgumentException throws if user id does not exist in the system
      * @return login status of user
      */
-    fun getUserStatus(userId:Long): LoginStatus
+    fun getUserStatus(userId:Long): CompletableFuture<LoginStatus>
 
     /**
      * Get the password of the given user id
@@ -63,14 +63,14 @@ interface IUserManager {
      * @throws IllegalArgumentException if user id does not exist in the system
      * @return String - the password if username exists
      */
-    fun getUserPassword(userId: Long) : String
+    fun getUserPassword(userId: Long) : CompletableFuture<String>
 
     /**
      * updates a user privilege
      * @param userId String the user name of the user
      * @param privilege privilege of the user
      */
-    fun updateUserPrivilege(userId: Long, privilege: PrivilegeLevel)
+    fun updateUserPrivilege(userId: Long, privilege: PrivilegeLevel): CompletableFuture<Unit>
 
     /**
      * updates a user privilege
@@ -85,14 +85,14 @@ interface IUserManager {
      * @param username String
      * @return Boolean - true if exist, false if not
      */
-    fun isUsernameExists(username : String) : Boolean
+    fun isUsernameExists(username : String) : CompletableFuture<Boolean>
 
     /**
      * Check if user id already exist in the system
      * @param userId String
      * @return Boolean - true if exist, false if not
      */
-    fun isUserIdExists(userId : Long) : Boolean
+    fun isUserIdExists(userId : Long) : CompletableFuture<Boolean>
 
 
     /** CHANNELS OF USER **/
@@ -102,7 +102,7 @@ interface IUserManager {
      * @throws IllegalArgumentException throws if user id does not exist in the system
      * @return ids of the channels
      */
-    fun getChannelListOfUser(userId: Long): List<Long>
+    fun getChannelListOfUser(userId: Long): CompletableFuture<List<Long>>
 
     /**
      * gets the channel list size of the user
@@ -110,7 +110,7 @@ interface IUserManager {
      * @throws IllegalArgumentException throws if user id does not exist in the system
      * @return size of the channel list
      */
-    fun getUserChannelListSize(userId: Long):Long
+    fun getUserChannelListSize(userId: Long): CompletableFuture<Long>
 
     /**
      * addChannel a channel to a specific user
@@ -120,7 +120,7 @@ interface IUserManager {
      * @throws IllegalArgumentException throws if user id does not exist in the system
      * @throws IllegalAccessException throws if channelId already exists in users list
      */
-    fun addChannelToUser(userId:Long, channelId:Long)
+    fun addChannelToUser(userId:Long, channelId:Long): CompletableFuture<Unit>
 
     /**
      * removes a channel to a specific user
@@ -130,7 +130,7 @@ interface IUserManager {
      * @throws IllegalArgumentException throws if user id does not exist in the system
      * @throws IllegalAccessException throws if channelId does not exist in users list
      */
-    fun removeChannelFromUser(userId: Long,channelId: Long)
+    fun removeChannelFromUser(userId: Long,channelId: Long): CompletableFuture<Unit>
 
 
     /** USER STATISTICS **/
@@ -138,13 +138,13 @@ interface IUserManager {
      * get number of total users in the system
      * @return Long
      */
-    fun getTotalUsers() : Long
+    fun getTotalUsers() : CompletableFuture<Long>
 
     /**
      * get number of total logged in users in the system
      * @return Long
      */
-    fun getLoggedInUsers() : Long
+    fun getLoggedInUsers() : CompletableFuture<Long>
 
 
     /** USER COMPLEX STATISTICS **/
@@ -152,5 +152,5 @@ interface IUserManager {
      * Get a list contains 10 best users by channels count (or less than 10 if nr of total users < 10)
      * @return List<String> of usernames
      */
-    fun getTop10UsersByChannelsCount() : List<String>
+    fun getTop10UsersByChannelsCount() : CompletableFuture<List<CompletableFuture<String>>>
 }

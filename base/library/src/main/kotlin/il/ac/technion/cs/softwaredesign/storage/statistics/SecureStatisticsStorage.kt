@@ -8,12 +8,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class SecureStatisticsStorage @Inject constructor(@StatisticsStorage private val statisticsStorage: SecureStorage) : IStatisticsStorage {
+class SecureStatisticsStorage @Inject constructor(@StatisticsStorage private val statisticsStorage: SecureStorage)
+    : IStatisticsStorage {
 
     override fun getLongValue(key: String): CompletableFuture<Long?> {
-        return statisticsStorage.read(key.toByteArray()).thenApply { k ->
-            if (k == null) null
-            else ConversionUtils.bytesToLong(k)
+        return statisticsStorage.read(key.toByteArray()).thenApply {
+            if(it==null) null else ConversionUtils.bytesToLong(it)
         }
     }
 
