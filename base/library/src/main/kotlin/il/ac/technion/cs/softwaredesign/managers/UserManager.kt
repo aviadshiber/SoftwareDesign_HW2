@@ -13,6 +13,7 @@ import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.INVALID_USER_ID
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.LIST_PROPERTY
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.PASSWORD_PROPERTY
+import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,7 +28,7 @@ class UserManager
     private val defaultKey: () -> CountIdKey = { CountIdKey() }
     private val usersByChannelsCountTree = SecureAVLTree(usersByChannelsCountStorage, defaultKey)
 
-    override fun addUser(username: String, password: String, status: LoginStatus, privilege: PrivilegeLevel): Long {
+    override fun addUser(username: String, password: String, status: LoginStatus, privilege: PrivilegeLevel): CompletableFuture<Long> {
         var userId = getUserId(username)
         if (userId == INVALID_USER_ID) throw IllegalArgumentException("user id is not valid")
         if (userId != null) throw IllegalArgumentException("user already exist")

@@ -16,25 +16,50 @@ class SecureUserStorage @Inject constructor(
         @MemberDetailsStorage private val userDetailsStorage:SecureStorage,
         @AuthenticationStorage private val tokenStorage:SecureStorage) : IUserStorage {
 
-    override fun getUserIdByUsername(usernameKey: String): CompletableFuture<Long?> {
-        val userIdByteArray=userIdStorage.read(usernameKey.toByteArray())
-        return ConversionUtils.bytesToLong(userIdByteArray)
+    override fun getUserIdByUsername(usernameKey: CompletableFuture<String?>): CompletableFuture<Long?> {
+        return usernameKey.thenCompose<Long?> { username ->
+            if (username == null) CompletableFuture.supplyAsync{ null } // if usernameKey is null
+            else userIdStorage.read(username.toByteArray()).thenApply { userId ->
+                if (userId == null ) null // if username does not exist
+                else ConversionUtils.bytesToLong(userId)
+            }
+        }
     }
 
-    override fun setUserIdToUsername(usernameKey: String, userIdValue: Long) :CompletableFuture<Unit>{
-        userIdStorage.write(usernameKey.toByteArray(),ConversionUtils.longToBytes(userIdValue))
+    override fun setUserIdToUsername(usernameKey: CompletableFuture<String?>, userIdValue: CompletableFuture<Long?>): CompletableFuture<Unit> {
+        return usernameKey.thenCompose { username ->
+            userIdValue.thenCompose { userId ->
+                if (username != null && userId != null)
+                    userIdStorage.write(username.toByteArray(),ConversionUtils.longToBytes(userId))
+                else CompletableFuture.supplyAsync{ Unit }
+            }
+        }
     }
 
-    override fun getUserIdByToken(tokenKey: String): Long? {
-        val userIdByteArray=tokenStorage.read(tokenKey.toByteArray())?: return null
-        return ConversionUtils.bytesToLong(userIdByteArray)
+    override fun getUserIdByToken(tokenKey: CompletableFuture<String?>): CompletableFuture<Long?> {
+        return tokenKey.thenCompose<Long?> { token ->
+            if (token == null) {
+                CompletableFuture.supplyAsync{ null }
+            } else {
+                tokenStorage.read(token.toByteArray()).thenApply { userId ->
+                    if (userId == null ) null // if token does not exist
+                    else ConversionUtils.bytesToLong(userId)
+                }
+            }
+        }
     }
 
-    override fun setUserIdToToken(tokenKey: String, userIdValue: Long) {
-       tokenStorage.write(tokenKey.toByteArray(),ConversionUtils.longToBytes(userIdValue))
+    override fun setUserIdToToken(tokenKey: CompletableFuture<String?>, userIdValue: CompletableFuture<Long?>): CompletableFuture<Unit> {
+        return tokenKey.thenCompose { token ->
+            userIdValue.thenCompose { userId ->
+                if (token != null && userId != null)
+                    userIdStorage.write(token.toByteArray(),ConversionUtils.longToBytes(userId))
+                else CompletableFuture.supplyAsync{ Unit }
+            }
+        }
     }
 
-    override fun getPropertyStringByUserId(userIdKey: Long, property: String): String? {
+    override fun getPropertyStringByUserId(userIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>): CompletableFuture<String?> {
         val key = createPropertyKey(userIdKey, property)
         val value= userDetailsStorage.read(key) ?: return null
         return String(value)
@@ -74,5 +99,18 @@ class SecureUserStorage @Inject constructor(
         val userIdByteArray = ConversionUtils.longToBytes(userId)
         val keySuffixByteArray = "$DELIMITER$property".toByteArray()
         return userIdByteArray + keySuffixByteArray
+    }
+
+    private fun createPropertyKey(userIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>) : CompletableFuture<ByteArray?>{
+        return userIdKey.thenCombine<String?, ByteArray?>(property
+        ) { userId, propertyVal ->
+            if (userId != null && propertyVal != null) {
+                val userIdByteArray = ConversionUtils.longToBytes(userId)
+                val keySuffixByteArray = "$DELIMITER$propertyVal".toByteArray()
+                userIdByteArray + keySuffixByteArray
+            } else {
+                null
+            }
+        }
     }
 }

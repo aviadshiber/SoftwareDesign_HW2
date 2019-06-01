@@ -23,21 +23,30 @@ class CourseAppImpl
     }
 
     override fun login(username: String, password: String): CompletableFuture<String> {
-        var userId = userManager.getUserId(username)
+        var userId: CompletableFuture<Long?> = userManager.getUserId(username)
         val hashedPassword = password.hashString(HASH_ALGORITHM)
-        userId.thenApply {
-            if (it == null) {
-                it = userManager.addUser(username, hashedPassword)
-                if (it == 1L) userManager.updateUserPrivilege(it, IUserManager.PrivilegeLevel.ADMIN)
-            } else {
-                if (userManager.getUserPassword(it) != hashedPassword)
-                    throw NoSuchEntityException()
-                else if (userManager.getUserStatus(it) == IUserManager.LoginStatus.IN)
-                    throw UserAlreadyLoggedInException()
 
-                userManager.updateUserStatus(it, IUserManager.LoginStatus.IN)
-                updateUserStatusInChannels(it, IUserManager.LoginStatus.IN)
-            }
+//        userId.thenCompose {
+//            x : Long? ->
+//            if (x == null) {
+//                userManager.addUser(username, hashedPassword)
+//            }
+//            else {
+//
+//            }
+//        }
+
+        if (userId == null) {
+            userId = userManager.addUser(username, hashedPassword)
+            if (userId == 1L) userManager.updateUserPrivilege(userId, IUserManager.PrivilegeLevel.ADMIN)
+        } else {
+            if (userManager.getUserPassword(userId) != hashedPassword)
+                throw NoSuchEntityException()
+            else if (userManager.getUserStatus(userId) == IUserManager.LoginStatus.IN)
+                throw UserAlreadyLoggedInException()
+
+            userManager.updateUserStatus(userId, IUserManager.LoginStatus.IN)
+            updateUserStatusInChannels(userId, IUserManager.LoginStatus.IN)
         }
         //At this point user is surly exist we just need to create a token
         return tokenManager.assignTokenToUserId(userId)

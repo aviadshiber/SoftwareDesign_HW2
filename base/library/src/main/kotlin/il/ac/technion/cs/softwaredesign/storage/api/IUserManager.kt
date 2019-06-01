@@ -22,7 +22,7 @@ interface IUserManager {
      * @throws IllegalArgumentException if username is already exist
      * @return user id that was added to the system
      */
-    fun addUser(username: String, password: String, status: LoginStatus = LoginStatus.IN, privilege: PrivilegeLevel = PrivilegeLevel.USER):Long
+    fun addUser(username: String, password: String, status: LoginStatus = LoginStatus.IN, privilege: PrivilegeLevel = PrivilegeLevel.USER):CompletableFuture<Long>
 
 
     /** GETTERS & SETTERS **/
