@@ -53,7 +53,7 @@ class SecureUserStorage @Inject constructor(
         return tokenKey.thenCompose { token ->
             userIdValue.thenCompose { userId ->
                 if (token != null && userId != null)
-                    userIdStorage.write(token.toByteArray(),ConversionUtils.longToBytes(userId))
+                    tokenStorage.write(token.toByteArray(),ConversionUtils.longToBytes(userId))
                 else CompletableFuture.supplyAsync{ Unit }
             }
         }

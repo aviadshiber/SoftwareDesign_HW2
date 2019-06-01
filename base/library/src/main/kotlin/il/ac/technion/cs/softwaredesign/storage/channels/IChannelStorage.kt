@@ -1,16 +1,17 @@
 package il.ac.technion.cs.softwaredesign.storage.channels
 
+import java.util.concurrent.CompletableFuture
+
 interface IChannelStorage {
+    fun getChannelIdByChannelName(channelName : CompletableFuture<String?>) : CompletableFuture<Long?>
+    fun setChannelIdToChannelName(channelNameKey: CompletableFuture<String?>, channelId: CompletableFuture<Long?>): CompletableFuture<Unit>
 
-    fun getChannelIdByChannelName(channelName : String) : Long?
-    fun setChannelIdToChannelName(channelNameKey: String, channelId: Long)
+    fun getPropertyStringByChannelId(channelIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>) : CompletableFuture<String?>
+    fun setPropertyStringToChannelId(channelIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>, value: CompletableFuture<String?>): CompletableFuture<Unit>
 
-    fun getPropertyStringByChannelId(channelIdKey: Long, property: String) : String?
-    fun setPropertyStringToChannelId(channelIdKey: Long, property: String, value: String)
+    fun getPropertyLongByChannelId(channelIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>) :CompletableFuture<Long?>
+    fun setPropertyLongToChannelId(channelIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>, value: CompletableFuture<Long?>): CompletableFuture<Unit>
 
-    fun getPropertyLongByChannelId(channelIdKey: Long, property: String) :Long?
-    fun setPropertyLongToChannelId(channelIdKey: Long, property: String, value: Long)
-
-    fun getPropertyListByChannelId(channelIdKey: Long, property: String) : List<Long>?
-    fun setPropertyListToChannelId(channelIdKey: Long, property: String, listValue: List<Long>)
+    fun getPropertyListByChannelId(channelIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>) : CompletableFuture<List<Long>?>
+    fun setPropertyListToChannelId(channelIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>, listValue: CompletableFuture<List<Long>>): CompletableFuture<Unit>
 }
