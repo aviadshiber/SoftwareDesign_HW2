@@ -16,24 +16,22 @@ class SecureUserStorage @Inject constructor(
         @MemberDetailsStorage private val userDetailsStorage:SecureStorage,
         @AuthenticationStorage private val tokenStorage:SecureStorage) : IUserStorage {
 
-    override fun getUserIdByUsername(usernameKey: CompletableFuture<String?>): CompletableFuture<Long?> {
-        return usernameKey.thenCompose<Long?> { username ->
-            if (username == null) CompletableFuture.supplyAsync{ null } // if usernameKey is null
-            else userIdStorage.read(username.toByteArray()).thenApply { userId ->
+    override fun getUserIdByUsername(usernameKey: String): CompletableFuture<Long?> {
+        return userIdStorage.read(usernameKey.toByteArray()).thenApply { userId ->
                 if (userId == null ) null // if username does not exist
                 else ConversionUtils.bytesToLong(userId)
             }
-        }
     }
 
-    override fun setUserIdToUsername(usernameKey: CompletableFuture<String?>, userIdValue: CompletableFuture<Long?>): CompletableFuture<Unit> {
-        return usernameKey.thenCompose { username ->
-            userIdValue.thenCompose { userId ->
-                if (username != null && userId != null)
-                    userIdStorage.write(username.toByteArray(),ConversionUtils.longToBytes(userId))
-                else CompletableFuture.supplyAsync{ Unit }
-            }
-        }
+    override fun setUserIdToUsername(usernameKey: String, userIdValue: Long): CompletableFuture<Unit> {
+        return userIdStorage.write(usernameKey.toByteArray(), ConversionUtils.longToBytes(userIdValue))
+//        return usernameKey.thenCompose { username ->
+//            userIdValue.thenCompose { userId ->
+//                if (username != null && userId != null)
+//                    userIdStorage.write(username.toByteArray(),ConversionUtils.longToBytes(userId))
+//                else CompletableFuture.supplyAsync{ Unit }
+//            }
+//        }
     }
 
     override fun getUserIdByToken(tokenKey: CompletableFuture<String?>): CompletableFuture<Long?> {

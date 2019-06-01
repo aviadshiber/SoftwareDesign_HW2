@@ -26,16 +26,11 @@ class CourseAppImpl
         var userId: CompletableFuture<Long?> = userManager.getUserId(username)
         val hashedPassword = password.hashString(HASH_ALGORITHM)
 
-//        userId.thenCompose {
-//            x : Long? ->
-//            if (x == null) {
-//                userManager.addUser(username, hashedPassword)
-//            }
-//            else {
-//
-//            }
-//        }
-
+        userId.thenApply { id ->
+            if (id == null) {
+                id = userManager.addUser(username, hashedPassword)
+            }
+        }
         if (userId == null) {
             userId = userManager.addUser(username, hashedPassword)
             if (userId == 1L) userManager.updateUserPrivilege(userId, IUserManager.PrivilegeLevel.ADMIN)

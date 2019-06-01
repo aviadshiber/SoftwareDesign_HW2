@@ -29,33 +29,35 @@ class UserManager
     private val usersByChannelsCountTree = SecureAVLTree(usersByChannelsCountStorage, defaultKey)
 
     override fun addUser(username: String, password: String, status: LoginStatus, privilege: PrivilegeLevel): CompletableFuture<Long> {
-        var userId = getUserId(username)
-        if (userId == INVALID_USER_ID) throw IllegalArgumentException("user id is not valid")
-        if (userId != null) throw IllegalArgumentException("user already exist")
-        userId = userIdGenerator.next()
+        val userId = getUserId(username)
+        return userId.thenCompose { id ->
+            if (id == INVALID_USER_ID) throw IllegalArgumentException("user id is not valid")
+            if (id != null) throw IllegalArgumentException("user already exist")
+            userIdGenerator.next()
+        }.thenApply { id ->
+            // id db
+            userStorage.setUserIdToUsername(username, id!!)
 
-        // id db
-        userStorage.setUserIdToUsername(username, userId)
+            // details db
+            userStorage.setPropertyStringToUserId(id, MANAGERS_CONSTS.USERNAME_PROPERTY, username)
+            userStorage.setPropertyStringToUserId(id, MANAGERS_CONSTS.PASSWORD_PROPERTY, password)
+            userStorage.setPropertyStringToUserId(id, MANAGERS_CONSTS.STATUS_PROPERTY, status.ordinal.toString())
+            userStorage.setPropertyStringToUserId(id, MANAGERS_CONSTS.PRIVILAGE_PROPERTY, privilege.ordinal.toString())
+            initChannelList(id)
 
-        // details db
-        userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.USERNAME_PROPERTY, username)
-        userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.PASSWORD_PROPERTY, password)
-        userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.STATUS_PROPERTY, status.ordinal.toString())
-        userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.PRIVILAGE_PROPERTY, privilege.ordinal.toString())
-        initChannelList(userId)
+            // tree db
+            addNewUserToUserTree(userId = id, count = 0L)
 
-        // tree db
-        addNewUserToUserTree(userId = userId, count = 0L)
+            // increase logged in users only, cause number of users was increased by id generator
+            if (status == LoginStatus.IN) statisticsManager.increaseLoggedInUsersBy()
 
-        // increase logged in users only, cause number of users was increased by id generator
-        if (status == LoginStatus.IN) statisticsManager.increaseLoggedInUsersBy()
-
-        return userId
+            id
+        }
     }
 
 
     /** GETTERS & SETTERS **/
-    override fun getUserId(username: String): Long? {
+    override fun getUserId(username: String): CompletableFuture<Long?> {
         return userStorage.getUserIdByUsername(username)
     }
 
