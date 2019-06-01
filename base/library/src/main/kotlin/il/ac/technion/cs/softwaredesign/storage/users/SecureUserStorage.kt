@@ -60,45 +60,86 @@ class SecureUserStorage @Inject constructor(
     }
 
     override fun getPropertyStringByUserId(userIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>): CompletableFuture<String?> {
-        val key = createPropertyKey(userIdKey, property)
-        val value= userDetailsStorage.read(key) ?: return null
-        return String(value)
+        return createPropertyKey(userIdKey, property).thenCompose<ByteArray?> { key ->
+            if (key == null) null // userId is null
+            else userDetailsStorage.read(key)
+        }.thenApply { byteArray ->
+            if (byteArray == null) null else String(byteArray) // userId does not exist
+        }
     }
 
-    override fun setPropertyStringToUserId(userIdKey: Long, property: String, value: String) {
-        val key = createPropertyKey(userIdKey, property)
-        userDetailsStorage.write(key, value.toByteArray())
+    override fun setPropertyStringToUserId(userIdKey: CompletableFuture<Long?>,
+                                           property: CompletableFuture<String?>,
+                                           value: CompletableFuture<String?>): CompletableFuture<Unit> {
+        return createPropertyKey(userIdKey, property).thenCompose { propertyKey ->
+            if (propertyKey == null) null // should not get here
+            else {
+                value.thenCompose { valueToWrite ->
+                    if (valueToWrite == null) null // value should not be null
+                    else userDetailsStorage.write(propertyKey, valueToWrite.toByteArray())
+                }
+            }
+        }
     }
 
-    override fun getPropertyLongByUserId(userIdKey: Long, property: String): Long? {
-        val key = createPropertyKey(userIdKey, property)
-        val value= userDetailsStorage.read(key) ?: return null
-        return ConversionUtils.bytesToLong(value)
+    override fun getPropertyLongByUserId(userIdKey: CompletableFuture<Long?>,
+                                         property: CompletableFuture<String?>): CompletableFuture<Long?> {
+        return createPropertyKey(userIdKey, property).thenCompose { propertyKey ->
+            if (propertyKey == null) null // should not get here
+            else {
+                userDetailsStorage.read(propertyKey).thenApply { byteArray ->
+                    if (byteArray == null) null else ConversionUtils.bytesToLong(byteArray) // userId does not exist
+                }
+            }
+        }
     }
 
-    override fun setPropertyLongToUserId(userIdKey: Long, property: String, value: Long) {
-        val key = createPropertyKey(userIdKey, property)
-        userDetailsStorage.write(key, ConversionUtils.longToBytes(value))
+    override fun setPropertyLongToUserId(userIdKey: CompletableFuture<Long?>,
+                                         property: CompletableFuture<String?>,
+                                         value: CompletableFuture<Long?>) : CompletableFuture<Unit> {
+        return createPropertyKey(userIdKey, property).thenCompose { propertyKey ->
+            if (propertyKey == null) null // should not get here
+            else {
+                value.thenCompose { valueToWrite ->
+                    if (valueToWrite == null) null // value should not be null
+                    else userDetailsStorage.write(propertyKey, ConversionUtils.longToBytes(valueToWrite))
+                }
+            }
+        }
     }
 
-    override fun getPropertyListByUserId(userIdKey: Long, property: String): List<Long>? {
-        val key = createPropertyKey(userIdKey, property)
-        val value= userDetailsStorage.read(key) ?: return null
-        val stringValue = String(value)
-        if (stringValue == "") return emptyList()
-        return stringValue.split(DELIMITER).map { it.toLong() }.toMutableList()
+    override fun getPropertyListByUserId(userIdKey: CompletableFuture<Long?>,
+                                         property: CompletableFuture<String?>): CompletableFuture<List<Long>?> {
+        return createPropertyKey(userIdKey, property).thenCompose { propertyKey ->
+            if (propertyKey == null) null
+            else {
+                userDetailsStorage.read(propertyKey).thenApply { list ->
+                    if (list == null) null // user id does not exist
+                    else {
+                        val stringValue = String(list)
+                        if (stringValue == "") listOf<Long>()
+                        stringValue.split(DELIMITER).map { it.toLong() }.toList()
+                    }
+                }
+            }
+        }
     }
 
-    override fun setPropertyListToUserId(userIdKey: Long, property: String, listValue: List<Long>) {
-        val key = createPropertyKey(userIdKey, property)
-        val value = listValue.joinToString(DELIMITER)
-        userDetailsStorage.write(key, value.toByteArray())
-    }
-
-    private fun createPropertyKey(userId: Long, property: String) : ByteArray{
-        val userIdByteArray = ConversionUtils.longToBytes(userId)
-        val keySuffixByteArray = "$DELIMITER$property".toByteArray()
-        return userIdByteArray + keySuffixByteArray
+    override fun setPropertyListToUserId(userIdKey: CompletableFuture<Long?>,
+                                         property: CompletableFuture<String?>,
+                                         listValue: CompletableFuture<List<Long?>>): CompletableFuture<Unit> {
+        return createPropertyKey(userIdKey, property).thenCompose { propertyKey ->
+            if (propertyKey == null) null // should not get here
+            else {
+                listValue.thenCompose { valueToWrite ->
+                    if (valueToWrite == null) null // value should not be null
+                    else {
+                        val value = valueToWrite.joinToString(DELIMITER)
+                        userDetailsStorage.write(propertyKey, value.toByteArray())
+                    }
+                }
+            }
+        }
     }
 
     private fun createPropertyKey(userIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>) : CompletableFuture<ByteArray?>{

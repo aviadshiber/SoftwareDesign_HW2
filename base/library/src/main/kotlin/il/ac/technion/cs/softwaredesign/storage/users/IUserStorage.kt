@@ -10,11 +10,11 @@ interface IUserStorage {
     fun setUserIdToToken(tokenKey: CompletableFuture<String?>, userIdValue: CompletableFuture<Long?>): CompletableFuture<Unit>
 
     fun getPropertyStringByUserId(userIdKey : CompletableFuture<Long?>, property : CompletableFuture<String?>) : CompletableFuture<String?>
-    fun setPropertyStringToUserId(userIdKey : CompletableFuture<Long?>, property : CompletableFuture<String?>, value : CompletableFuture<String?>)
+    fun setPropertyStringToUserId(userIdKey : CompletableFuture<Long?>, property : CompletableFuture<String?>, value : CompletableFuture<String?>): CompletableFuture<Unit>
 
     fun getPropertyLongByUserId(userIdKey : CompletableFuture<Long?>, property : CompletableFuture<String?>) : CompletableFuture<Long?>
-    fun setPropertyLongToUserId(userIdKey : CompletableFuture<Long?>, property : CompletableFuture<String?>, value : CompletableFuture<Long?>)
+    fun setPropertyLongToUserId(userIdKey : CompletableFuture<Long?>, property : CompletableFuture<String?>, value : CompletableFuture<Long?>): CompletableFuture<Unit>
 
     fun getPropertyListByUserId(userIdKey : CompletableFuture<Long?>, property : CompletableFuture<String?>) : CompletableFuture<List<Long>?>
-    fun setPropertyListToUserId(userIdKey : CompletableFuture<Long?>, property : CompletableFuture<String?>, listValue : List<Long?>)
+    fun setPropertyListToUserId(userIdKey: CompletableFuture<Long?>, property: CompletableFuture<String?>, listValue: CompletableFuture<List<Long?>>): CompletableFuture<Unit>
 }
