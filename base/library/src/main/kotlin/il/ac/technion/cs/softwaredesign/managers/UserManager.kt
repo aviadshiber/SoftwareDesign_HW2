@@ -176,7 +176,9 @@ class UserManager
 
     private fun buildTop10UsersByChannelCountList(nrOutputUsers: Long ) : MutableList<CompletableFuture<String>> {
         val values = mutableListOf<CompletableFuture<String>>()
-        (min(10, nrOutputUsers) downTo 1).forEach {
+        val higherUserIndex=nrOutputUsers-1
+        val lowestUserIndex= nrOutputUsers-min(10, nrOutputUsers)
+        (higherUserIndex downTo lowestUserIndex).forEach {
             val userId = usersByChannelsCountTree.select(it).getId()
             val userName = getUsernameById(userId)
             values.add(userName)
