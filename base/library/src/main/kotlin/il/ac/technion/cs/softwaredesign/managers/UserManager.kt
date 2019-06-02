@@ -41,7 +41,7 @@ class UserManager
 
             // details db
             userStorage.setPropertyStringToUserId(id, MANAGERS_CONSTS.USERNAME_PROPERTY, username)
-            userStorage.setPropertyStringToUserId(id, MANAGERS_CONSTS.PASSWORD_PROPERTY, password)
+            userStorage.setPropertyStringToUserId(id, PASSWORD_PROPERTY, password)
             userStorage.setPropertyStringToUserId(id, MANAGERS_CONSTS.STATUS_PROPERTY, status.ordinal.toString())
             userStorage.setPropertyStringToUserId(id, MANAGERS_CONSTS.PRIVILAGE_PROPERTY, privilege.ordinal.toString())
             initChannelList(id)
@@ -92,18 +92,22 @@ class UserManager
         return userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.PRIVILAGE_PROPERTY, privilege.ordinal.toString())
     }
 
-    override fun updateUserStatus(userId: Long, status: LoginStatus) {
-        try {
-            val oldStatus = getUserStatus(userId)
-            if (oldStatus == status) return
-            userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.STATUS_PROPERTY, status.ordinal.toString())
-            if (status == LoginStatus.IN) {
-                statisticsManager.increaseLoggedInUsersBy()
-            } else {
-                statisticsManager.decreaseLoggedInUsersBy()
-            }
-        } catch (e: IllegalArgumentException) { /* user id does not exist, do nothing */
-        }
+    override fun updateUserStatus(userId: Long, status: LoginStatus) :CompletableFuture<Unit> {
+
+            return getUserStatus(userId).thenApply{ if(it == status) Unit }.thenCompose{
+                userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.STATUS_PROPERTY, status.ordinal.toString())
+                        .thenCompose {
+                            if (status == LoginStatus.IN) {
+                                statisticsManager.increaseLoggedInUsersBy()
+                            } else {
+                                statisticsManager.decreaseLoggedInUsersBy()
+                            }
+                        }
+
+
+
+            }.exceptionally {/* user id does not exist, do nothing */  }
+
     }
 
 

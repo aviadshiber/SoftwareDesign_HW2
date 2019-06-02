@@ -77,7 +77,7 @@ interface IUserManager {
      * @param userId String the user name of the user
      * @param status status of the user
      */
-    fun updateUserStatus(userId:Long, status: LoginStatus)
+    fun updateUserStatus(userId:Long, status: LoginStatus): CompletableFuture<Unit>
 
 
     /**
