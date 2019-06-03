@@ -13,8 +13,13 @@ import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.CHANNEL_INVALID_ID
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.CHANNEL_INVALID_NAME
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.CHANNEL_NAME_PROPERTY
+import io.github.vjames19.futures.jdk8.Future
+import io.github.vjames19.futures.jdk8.ImmediateFuture
+import io.github.vjames19.futures.jdk8.map
+import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.min
 
 @Singleton
 class ChannelManager
@@ -29,67 +34,74 @@ class ChannelManager
     private val channelsByUsersCountTree = SecureAVLTree(channelsByUsersCountStorage, defaultKey)
     private val channelsByActiveUsersCountTree = SecureAVLTree(channelsByActiveUsersCountStorage, defaultKey)
 
-    override fun addChannel(channelName: String): Long {
+    override fun addChannel(channelName: String): CompletableFuture<Long> {
+        return getNextChannelIdFuture(channelName).thenCompose { channelId-> propertiesSetterFuture(channelId,channelName) }
+                .thenCompose {addNewChannelToChannelTrees(channelId = it)  }
+                .thenCompose {id->increaseNumberOfChannelsFuture(id) }
+    }
+
+
+
+    private fun propertiesSetterFuture(channelId: Long, channelName: String): CompletableFuture<Long> {
+             // id db
+            val channelNameSetterFuture=  channelStorage.setChannelIdToChannelName(channelName, channelId)
+            // details db
+            val channelIdSetterFuture= channelStorage.setPropertyStringToChannelId(channelId, CHANNEL_NAME_PROPERTY, channelName)
+            val channelNumberSetterFuture=channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS, 0L)
+            val channelActiveNumberSetterFuture= channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_ACTIVE_MEMBERS, 0L)
+            val channelMemberListFuture= channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_MEMBERS_LIST, emptyList())
+            val channelOperatorListFuture= channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_OPERATORS_LIST, emptyList())
+            val futures= listOf(channelNameSetterFuture,channelIdSetterFuture,channelNumberSetterFuture,channelActiveNumberSetterFuture,channelMemberListFuture,channelOperatorListFuture)
+            return Future.allAsList(futures).thenApply { channelId }
+    }
+
+
+    private fun getNextChannelIdFuture(channelName: String): CompletableFuture<Long> {
         if (channelName == CHANNEL_INVALID_NAME) throw IllegalArgumentException("channel name cannot be empty")
-        if (isChannelNameExists(channelName)) throw IllegalArgumentException("channel name already exist")
-        val channelId = channelIdGenerator.next()
-
-        // id db
-        channelStorage.setChannelIdToChannelName(channelName, channelId)
-
-        // details db
-        channelStorage.setPropertyStringToChannelId(channelId, CHANNEL_NAME_PROPERTY, channelName)
-        channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS, 0L)
-        channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_ACTIVE_MEMBERS, 0L)
-        channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_MEMBERS_LIST, emptyList())
-        channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_OPERATORS_LIST, emptyList())
-
-        // trees
-        addNewChannelToChannelTrees(channelId = channelId, count = 0L)
-
-        statisticsManager.increaseNumberOfChannelsBy()
-        return channelId
+        return isChannelNameExists(channelName).thenCompose {
+            if(it) throw IllegalArgumentException("channel name already exist")
+            else channelIdGenerator.next()
+        }
     }
 
     override fun removeChannel(channelId: Long) {
         removeChannelFromChannelTrees(channelId)
-        invalidateChannel(channelId)
+        invalidateChannelFuture(channelId)
         statisticsManager.decreaseNumberOfChannelsBy()
     }
 
-    override fun isChannelNameExists(channelName: String): Boolean {
+    override fun isChannelNameExists(channelName: String): CompletableFuture<Boolean> {
         return isChannelValid(channelName)
     }
 
-    override fun isChannelIdExists(channelId: Long): Boolean {
+    override fun isChannelIdExists(channelId: Long): CompletableFuture<Boolean> {
         return isChannelValid(channelId)
     }
 
-    override fun getChannelIdByName(channelName: String): Long {
-        if (!isChannelValid(channelName = channelName)) throw IllegalArgumentException("channel name is not valid")
-        val id = channelStorage.getChannelIdByChannelName(channelName)
-        if (isChannelValid(channelId = id)) return id!! // TODO: redundant, consider removing it
-        throw IllegalArgumentException("returned channel id is not valid")
+    override fun getChannelIdByName(channelName: String): CompletableFuture<Long> {
+        return isChannelValid(channelName = channelName)
+                .thenApply { if(!it) throw IllegalArgumentException("channel name is not valid") }
+                .thenCompose { channelStorage.getChannelIdByChannelName(channelName) }
+                .thenApply { it!! }
     }
 
-    override fun getChannelNameById(channelId: Long): String {
-        if (!isChannelValid(channelId = channelId)) throw IllegalArgumentException("channel id is not valid")
-        val name = channelStorage.getPropertyStringByChannelId(channelId, CHANNEL_NAME_PROPERTY)
-        if (isChannelValid(channelName = name)) return name!! // TODO: redundant, consider removing it
-        throw IllegalArgumentException("returned channel name is not valid")
+    override fun getChannelNameById(channelId: Long): CompletableFuture<String> {
+        return validateChannelIdFuture(channelId).thenCompose {
+                    channelStorage.getPropertyStringByChannelId(channelId, CHANNEL_NAME_PROPERTY)
+                }.thenApply { it!! }
     }
 
-    override fun getNumberOfChannels(): Long {
+    override fun getNumberOfChannels(): CompletableFuture<Long> {
         return statisticsManager.getNumberOfChannels()
     }
 
 
     /** NUMBER OF ACTIVE MEMBERS **/
     /** this property should be updated regardless members list updates **/
-    override fun getNumberOfActiveMembersInChannel(channelId: Long): Long {
-        if (!isChannelValid(channelId = channelId)) throw IllegalArgumentException("channel id is not valid")
-        return channelStorage.getPropertyLongByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_ACTIVE_MEMBERS)
-                ?: throw IllegalArgumentException("channel id is valid but returned null")
+    override fun getNumberOfActiveMembersInChannel(channelId: Long): CompletableFuture<Long> {
+        return validateChannelIdFuture(channelId).thenCompose {
+                    channelStorage.getPropertyLongByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_ACTIVE_MEMBERS) }
+                .thenApply { it ?: throw IllegalArgumentException("channel id is valid but returned null") }
     }
 
     override fun increaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long) {
@@ -102,154 +114,222 @@ class ChannelManager
 
 
     /** MEMBERS LIST **/
-    override fun getNumberOfMembersInChannel(channelId: Long): Long {
-        if (!isChannelValid(channelId = channelId)) throw IllegalArgumentException("channel id is not valid")
-        return channelStorage.getPropertyLongByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS)
-                ?: throw IllegalArgumentException("channel id is valid but returned null")
+    override fun getNumberOfMembersInChannel(channelId: Long): CompletableFuture<Long> {
+        return validateChannelIdFuture(channelId).thenCompose {
+            channelStorage.getPropertyLongByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS) }
+                .thenApply { it ?:  throw IllegalArgumentException("channel id is valid but returned null")}
     }
 
-    override fun getChannelMembersList(channelId: Long): List<Long> {
-        if (!isChannelValid(channelId = channelId)) throw IllegalArgumentException("channel id is not valid")
-        return channelStorage.getPropertyListByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_MEMBERS_LIST)
-                ?: throw IllegalArgumentException("channel id does not exist")
+    override fun getChannelMembersList(channelId: Long): CompletableFuture<List<Long>> {
+        return validateChannelIdFuture(channelId).thenCompose {
+            channelStorage.getPropertyListByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_MEMBERS_LIST)}
+                .thenApply { it ?: throw IllegalArgumentException("channel id does not exist") }
     }
 
-    override fun addMemberToChannel(channelId: Long, memberId: Long) {
-        if (!isChannelValid(channelId = channelId)) throw IllegalArgumentException("channel id is not valid")
-        val currentList = ArrayList<Long>(getChannelMembersList(channelId))
-        if (currentList.contains(memberId)) throw IllegalAccessException("member id already exists in channel")
-        currentList.add(memberId)
-        channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_MEMBERS_LIST, currentList)
-        channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS, currentList.size.toLong())
-
-        val size = currentList.size.toLong()
-        updateKeyInTree(TREE_CHANNELS_BY_USERS_COUNT, channelId, size - 1L, size)
+    override fun addMemberToChannel(channelId: Long, memberId: Long) :CompletableFuture<Unit> {
+        return getChannelMemberMutableListFuture(channelId, memberId)
+                .thenApply { it.add(memberId); it }
+                .thenCompose { list ->updateChannelMemberList(channelId,list)}
+                .thenCompose { size->
+                    updateKeyInTree(TREE_CHANNELS_BY_USERS_COUNT, channelId, size - 1L, size)
+                }
     }
 
-    override fun removeMemberFromChannel(channelId: Long, memberId: Long) {
-        if (!isChannelValid(channelId = channelId)) throw IllegalArgumentException("channel id is not valid")
-        val currentList = ArrayList<Long>(getChannelMembersList(channelId))
-        if (!currentList.contains(memberId)) throw IllegalAccessException("member id does not exists in channel")
-        currentList.remove(memberId)
-        channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_MEMBERS_LIST, currentList)
-        channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS, currentList.size.toLong())
+    private fun getChannelMemberMutableListFuture(channelId: Long, memberId: Long): CompletableFuture<ArrayList<Long>> {
+        return validateChannelIdFuture(channelId).thenCompose { getChannelMembersList(channelId) }
+                .thenApply { validateMemberInList(it, memberId) }
+                .map { list -> ArrayList<Long>(list) }
+    }
 
-        val size = currentList.size.toLong()
-        updateKeyInTree(TREE_CHANNELS_BY_USERS_COUNT, channelId, size + 1L, size)
+
+    override fun removeMemberFromChannel(channelId: Long, memberId: Long) :CompletableFuture<Unit> {
+        return getChannelMemberMutableListFuture(channelId, memberId)
+                .thenApply { it.remove(memberId); it }
+                .thenCompose { list ->updateChannelMemberList(channelId,list)}
+                .thenCompose { size->
+                    updateKeyInTree(TREE_CHANNELS_BY_USERS_COUNT, channelId, size + 1L, size)
+                }
     }
 
 
     /** OPERATORS LIST **/
-    override fun getChannelOperatorsList(channelId: Long): List<Long> {
-        if (!isChannelValid(channelId = channelId)) throw IllegalArgumentException("channel id is not valid")
-        return channelStorage.getPropertyListByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_OPERATORS_LIST)
-                ?: throw IllegalArgumentException("channel id does not exist")
+    override fun getChannelOperatorsList(channelId: Long): CompletableFuture<List<Long>> {
+        return validateChannelIdFuture(channelId)
+                .thenCompose {
+                    channelStorage.getPropertyListByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_OPERATORS_LIST) }
+                .thenApply { it ?: throw IllegalArgumentException("channel id does not exist") }
     }
 
-    override fun addOperatorToChannel(channelId: Long, operatorId: Long) {
-        if (!isChannelValid(channelId = channelId)) throw IllegalArgumentException("channel id is not valid")
-        val currentList = ArrayList<Long>(getChannelOperatorsList(channelId))
-        if (currentList.contains(operatorId)) return //operator id already exists in channel
-        currentList.add(operatorId)
-        channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_OPERATORS_LIST, currentList)
+    override fun addOperatorToChannel(channelId: Long, operatorId: Long) :CompletableFuture<Unit> {
+        return validateChannelIdFuture(channelId).thenCompose {  getChannelOperatorsList(channelId)}
+                .thenCompose { list-> addOperatorToChannelListFuture(list, operatorId, channelId) }
     }
 
-    override fun removeOperatorFromChannel(channelId: Long, operatorId: Long) {
-        if (!isChannelValid(channelId = channelId)) throw IllegalArgumentException("channel id is not valid")
-        val currentList = ArrayList<Long>(getChannelOperatorsList(channelId))
-        // if (!currentList.contains(operatorId)) throw IllegalAccessException("operator id does not exists in channel")
-        currentList.remove(operatorId)
-        channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_OPERATORS_LIST, currentList)
+
+
+
+    override fun removeOperatorFromChannel(channelId: Long, operatorId: Long):CompletableFuture<Unit> {
+        return validateChannelIdFuture(channelId).thenCompose {getChannelOperatorsList(channelId)}
+                .thenCompose { list-> removeOperatorFromListFuture(list, operatorId, channelId) }
     }
+
+
 
 
     /** CHANNEL COMPLEX STATISTICS **/
-    override fun getTop10ChannelsByUsersCount(): List<String> {
+    override fun getTop10ChannelsByUsersCount(): CompletableFuture<List<String>> {
         return getTop10FromTree(TREE_CHANNELS_BY_USERS_COUNT)
     }
 
-    override fun getTop10ChannelsByActiveUsersCount(): List<String> {
+    override fun getTop10ChannelsByActiveUsersCount(): CompletableFuture<List<String>> {
         return getTop10FromTree(TREE_CHANNELS_BY_ACTIVE_USERS_COUNT)
     }
 
     /** PRIVATES **/
+    /**
+     * the method validates the channel id and return the channelId for continues use
+     */
+    private fun validateChannelIdFuture(channelId: Long) = isChannelValid(channelId = channelId)
+            .thenApply { if (!it) throw IllegalArgumentException("channel id is not valid"); else channelId}
+
     // channel name exists if and only if it is mapped to a VALID channel id, i.e. channel id != CHANNEL_INVALID_ID
     // and its id_name is not mapped to CHANNEL_INVALID_NAME
-    private fun isChannelValid(channelId: Long?): Boolean {
+    private fun isChannelValid(channelId: Long?): CompletableFuture<Boolean> {
         if (channelId != null && channelId != CHANNEL_INVALID_ID) {
-            val name = channelStorage.getPropertyStringByChannelId(channelId, CHANNEL_NAME_PROPERTY)
-            return name != null && name != CHANNEL_INVALID_NAME
+            return channelStorage.getPropertyStringByChannelId(channelId, CHANNEL_NAME_PROPERTY)
+                    .thenApply { name -> name != null && name != CHANNEL_INVALID_NAME }
+
         }
-        return false
+        return ImmediateFuture { false }
     }
 
-    private fun isChannelValid(channelName: String?): Boolean {
+    private fun isChannelValid(channelName: String?): CompletableFuture<Boolean> {
+
         if (channelName != null && channelName != CHANNEL_INVALID_NAME) {
-            val id = channelStorage.getChannelIdByChannelName(channelName)
-            return id != null && id != CHANNEL_INVALID_ID
+            return channelStorage.getChannelIdByChannelName(channelName)
+                    .thenApply { id -> id != null && id != CHANNEL_INVALID_ID }
         }
-        return false
+        return ImmediateFuture { false }
     }
 
-    private fun invalidateChannel(channelId: Long) {
-        try {
-            val channelName = getChannelNameById(channelId)
-            invalidateChannel(channelId, channelName)
-        } catch (e: IllegalArgumentException) {
+    private fun addOperatorToChannelListFuture(list: List<Long>, operatorId: Long, channelId: Long): CompletableFuture<Unit> {
+        return if (!list.contains(operatorId)) {
+            val mutableList = ArrayList<Long>(list)
+            mutableList.add(operatorId)
+            channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_OPERATORS_LIST, mutableList)
+
+        } else {
+            ImmediateFuture { Unit } //operator id already exists in channel
         }
     }
 
-    private fun invalidateChannel(channelId: Long, channelName: String) {
-        channelStorage.setChannelIdToChannelName(channelName, CHANNEL_INVALID_ID)
-        channelStorage.setPropertyStringToChannelId(channelId, CHANNEL_NAME_PROPERTY, CHANNEL_INVALID_NAME)
+    private fun invalidateChannelFuture(channelId: Long) :CompletableFuture<Unit> {
+            return getChannelNameById(channelId)
+                    .thenCompose { channelName-> invalidateChannelFuture(channelId, channelName) }
+                    .exceptionally {  }
+
     }
 
-    private fun addNewChannelToChannelTrees(channelId: Long, count: Long) {
-        val key = CountIdKey(count = count, id = channelId)
-        channelsByUsersCountTree.put(key)
-        channelsByActiveUsersCountTree.put(key)
+    private fun invalidateChannelFuture(channelId: Long, channelName: String): CompletableFuture<Unit> {
+
+        val invalidatedIdFuture=channelStorage.setChannelIdToChannelName(channelName, CHANNEL_INVALID_ID)
+        val invalidateNameFuture=channelStorage.setPropertyStringToChannelId(channelId, CHANNEL_NAME_PROPERTY, CHANNEL_INVALID_NAME)
+        return Future.allAsList(listOf(invalidateNameFuture,invalidatedIdFuture)).thenApply { Unit }
     }
 
-    private fun removeChannelFromChannelTrees(channelId: Long) {
-        val membersCount = getNumberOfMembersInChannel(channelId)
-        val membersKey = CountIdKey(id = channelId, count = membersCount)
-        channelsByUsersCountTree.delete(membersKey)
-
-        val activeMembersCount = getNumberOfActiveMembersInChannel(channelId)
-        val activeMembersKey = CountIdKey(id = channelId, count = activeMembersCount)
-        channelsByActiveUsersCountTree.delete(activeMembersKey)
+    private fun addNewChannelToChannelTrees(channelId: Long) : CompletableFuture<Long> {
+        val key = CountIdKey(count = 0, id = channelId)
+        val updateChannelsByUsersCountTree = Future{channelsByUsersCountTree.put(key)} //TODO: remove future init after tree refactor
+        val updateChannelsByActiveUsersCountTree= Future { channelsByActiveUsersCountTree.put(key) }//TODO: remove future init after tree refactor
+        return Future.allAsList(listOf(updateChannelsByUsersCountTree,updateChannelsByActiveUsersCountTree)).thenApply { channelId }
     }
 
-    private fun changeNumberOfActiveMembersInChannelBy(channelId: Long, count: Long) {
+    private fun removeChannelFromChannelTrees(channelId: Long): CompletableFuture<Unit> {
+        val membersCountFuture = getNumberOfMembersInChannel(channelId)
+                .thenApply{ CountIdKey(id = channelId, count = it) }
+                .thenCompose {Future{channelsByUsersCountTree.delete(it)} } //TODO: remove future init after tree refactor
+
+
+        val activeMembersCountFuture = getNumberOfActiveMembersInChannel(channelId)
+                .thenApply { CountIdKey(id = channelId, count = it) }
+                .thenCompose {Future{channelsByActiveUsersCountTree.delete(it)}  }//TODO: remove future init after tree refactor
+        return Future.allAsList(listOf(membersCountFuture,activeMembersCountFuture)).thenApply { Unit }
+
+    }
+
+    private fun changeNumberOfActiveMembersInChannelBy(channelId: Long, count: Long): CompletableFuture<Unit> {
         // value:
-        if (!isChannelValid(channelId = channelId)) throw IllegalArgumentException("channel id is not valid")
-        val currentValue = getNumberOfActiveMembersInChannel(channelId)
-        val newValue = currentValue + count
-        channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_ACTIVE_MEMBERS, newValue)
-
-        updateKeyInTree(TREE_CHANNELS_BY_ACTIVE_USERS_COUNT, channelId, currentValue, newValue)
+        return validateChannelIdFuture(channelId).thenCompose { getNumberOfActiveMembersInChannel(channelId) }
+                .thenCompose {currentValue->
+                    val newValue=count+currentValue
+                    val nextValue= Pair(currentValue, newValue)
+                    channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_ACTIVE_MEMBERS, newValue).thenApply { nextValue }
+                }.thenCompose {
+                    (currentValue, newValue)->
+                    updateKeyInTree(TREE_CHANNELS_BY_ACTIVE_USERS_COUNT, channelId, currentValue, newValue)
+                }
     }
 
-    private fun updateKeyInTree(treeName: String, channelId: Long, currentValue: Long, newValue: Long) {
+    private fun updateKeyInTree(treeName: String, channelId: Long, currentValue: Long, newValue: Long) :CompletableFuture<Unit> {
         val tree = getTreeByName(treeName)
         val oldKey = CountIdKey(count = currentValue, id = channelId)
-        tree.delete(oldKey)
+        val deleteFuture=Future{tree.delete(oldKey)}  //TODO: remove Future init after tree refactor
         val newKey = CountIdKey(count = newValue, id = channelId)
-        tree.put(newKey)
+        val putFuture=Future{tree.put(newKey)} //TODO: remove Future init after tree refactor
+        return deleteFuture.thenCompose { putFuture }
     }
 
-    private fun getTop10FromTree(treeName: String): List<String> {
-        val tree = getTreeByName(treeName)
-        val values = mutableListOf<String>()
-        val nrChannels = getNumberOfChannels()
-        val nrOutputChannels = if (nrChannels > 10) 10 else nrChannels
-        for (k in 1..nrOutputChannels) {
-            val kthLarger = nrChannels - k
-            val channelId = tree.select(kthLarger).getId()
-            val userName = getChannelNameById(channelId)
-            values.add(userName)
+    private fun getTop10FromTree(treeName: String): CompletableFuture<List<String>> {
+        val tree= getTreeByName(treeName)
+        return getNumberOfChannels().thenCompose { buildTop10FutureListFromTree(tree,it) }
+    }
+
+    private fun buildTop10FutureListFromTree(tree: SecureAVLTree<CountIdKey>, numberOfChannels: Long): CompletableFuture<List<String>> {
+        val higherChannelIndex=numberOfChannels-1
+        val lowestChannelIndex= numberOfChannels- min(10, numberOfChannels)
+        val mutableList= buildTop10FromHigherToLowerListFromTree(higherChannelIndex,lowestChannelIndex,tree)
+        return mutableList.thenApply { it }
+    }
+
+    private fun buildTop10FromHigherToLowerListFromTree(higherChannelIndex: Long, lowestChannelIndex: Long, tree: SecureAVLTree<CountIdKey>): CompletableFuture<MutableList<String>> {
+            return if(higherChannelIndex<lowestChannelIndex){
+                Future{ mutableListOf<String>()}
+            }else{
+                //TODO: fix after tree refactoring (remove Future init)
+                val channelIdFuture = Future { tree.select(higherChannelIndex).getId() }
+                val channelNameFuture=channelIdFuture.thenCompose { getChannelNameById(it) }
+                buildTop10FromHigherToLowerListFromTree(higherChannelIndex-1,lowestChannelIndex,tree)
+                        .thenCompose { list-> channelNameFuture.thenApply { name-> list.add(name); list } }
+            }
+    }
+
+
+    private fun validateMemberInList(it: List<Long>, memberId: Long): List<Long> {
+        if (it.contains(memberId))
+            throw IllegalAccessException("member id already exists in channel"); return it
+    }
+
+    private fun removeOperatorFromListFuture(list: List<Long>, operatorId: Long, channelId: Long ): CompletableFuture<Unit> {
+        return if (!list.contains(operatorId)) {
+            val mutableList = ArrayList<Long>(list)
+            mutableList.remove(operatorId)
+            channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_OPERATORS_LIST, mutableList)
+        } else {
+            ImmediateFuture { Unit } //operator id already exists in channel
         }
-        return values
+    }
+
+    private fun increaseNumberOfChannelsFuture(id: Long): CompletableFuture<Long> {
+        statisticsManager.increaseNumberOfChannelsBy(); return ImmediateFuture { id }
+    }
+
+    /**
+     * the method updates the channel member list with the current list, and returns it's size
+     */
+    private fun updateChannelMemberList(channelId:Long,currentList:List<Long>):CompletableFuture<Long>{
+        val futureList=channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_MEMBERS_LIST, currentList)
+        val futureListSize=channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS, currentList.size.toLong())
+        return Future.allAsList(listOf(futureList,futureListSize)).map { currentList.size.toLong() }
     }
 
     private fun getTreeByName(treeName: String): SecureAVLTree<CountIdKey> {
