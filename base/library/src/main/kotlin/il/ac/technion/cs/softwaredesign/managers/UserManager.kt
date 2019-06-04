@@ -36,15 +36,13 @@ class UserManager
     override fun addUser(username: String, password: String, status: LoginStatus, privilege: PrivilegeLevel): CompletableFuture<Long> {
         //probably can be optimized even more with combine instead of compose but this is okay for now
         return getUserId(username)
-               .thenCompose { userId->generateNextUserId(userId) }
-               .thenCompose { userId->propertiesSettersFuture(userId,username,password,status,privilege) }
-               .thenCompose { userId->initChannelListFuture(userId) }
-               .thenCompose { userId->addNewUserToUserTreeFuture(userId = userId) }
-               .thenCompose { userId->increaseUserLoginFuture(userId,status) }
+                .thenCompose { userId->generateNextUserId(userId) }
+                .thenCompose { userId->userStorage.setUserIdToUsername(username, userId); CompletableFuture.supplyAsync{userId} }
+                .thenCompose { userId->propertiesSettersFuture(userId,username,password,status,privilege) }
+                .thenCompose { userId->initChannelListFuture(userId) }
+                .thenCompose { userId->addNewUserToUserTreeFuture(userId = userId) }
+                .thenCompose { userId->increaseUserLoginFuture(userId,status) }
     }
-
-
-
 
     /** GETTERS & SETTERS **/
     override fun getUserId(username: String): CompletableFuture<Long?> {
@@ -52,10 +50,8 @@ class UserManager
     }
 
     override fun getUsernameById(userId: Long): CompletableFuture<String> {
-
         return userStorage.getPropertyStringByUserId(userId, MANAGERS_CONSTS.USERNAME_PROPERTY)
                 .thenApply { it ?: throw IllegalArgumentException("user id does not exist") }
-
     }
 
     override fun getUserPrivilege(userId: Long): CompletableFuture<PrivilegeLevel> {
@@ -238,6 +234,14 @@ class UserManager
         if (currentUserId != null) throw IllegalArgumentException("user already exist")
         return userIdGenerator.next()
     }
+
+//    private fun propertiesSettersFuture(userId: Long, username: String, password: String, status:LoginStatus, privilege: PrivilegeLevel): CompletableFuture<Long> {
+//        return userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.USERNAME_PROPERTY, username)
+//                .thenCompose { userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.PASSWORD_PROPERTY, password) }
+//                .thenCompose { userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.STATUS_PROPERTY, status.ordinal.toString()) }
+//                .thenCompose { userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.PRIVILEGE_PROPERTY, privilege.ordinal.toString()) }
+//                .thenApply { userId }
+//    }
 
     private fun propertiesSettersFuture(userId: Long, username: String, password: String, status:LoginStatus, privilege: PrivilegeLevel): CompletableFuture<Long> {
         val usernamePropertySetterFuture=userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.USERNAME_PROPERTY, username)

@@ -1,56 +1,59 @@
-//package il.ac.technion.cs.softwaredesign.tests
-//
-//import com.authzee.kotlinguice4.getInstance
-//import com.google.common.primitives.Longs
-//import com.google.inject.Guice
-//import com.natpryce.hamkrest.assertion.assertThat
-//import com.natpryce.hamkrest.equalTo
-//import com.natpryce.hamkrest.hasElement
-//import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
-//import il.ac.technion.cs.softwaredesign.storage.SecureStorageFactory
-//import il.ac.technion.cs.softwaredesign.storage.statistics.IStatisticsStorage
-//import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES
-//import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS
-//import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST
-//import org.junit.jupiter.api.*
-//
-//@TestInstance(TestInstance.Lifecycle.PER_METHOD)
-//class UserManagerTest {
-//
-//    private val injector = Guice.createInjector(LibraryTestModule())
-//
-//    private val userManager = injector.getInstance<IUserManager>()
-//
-//    private fun initTrees() {
-//        val factory = injector.getInstance<SecureStorageFactory>()
-//        val s1 = factory.open(DB_NAMES.TREE_USERS_BY_CHANNELS_COUNT.toByteArray())
-//        val s2 = factory.open(DB_NAMES.TREE_CHANNELS_BY_ACTIVE_USERS_COUNT.toByteArray())
-//        val s3 = factory.open(DB_NAMES.TREE_CHANNELS_BY_USERS_COUNT.toByteArray())
-//        s1.write(TREE_CONST.ROOT_KEY.toByteArray(), Longs.toByteArray(TREE_CONST.ROOT_INIT_INDEX))
-//        s2.write(TREE_CONST.ROOT_KEY.toByteArray(), Longs.toByteArray(TREE_CONST.ROOT_INIT_INDEX))
-//        s3.write(TREE_CONST.ROOT_KEY.toByteArray(), Longs.toByteArray(TREE_CONST.ROOT_INIT_INDEX))
-//    }
-//
-//    private fun initStatistics() {
-//        val statisticsStorage = injector.getInstance<IStatisticsStorage>()
-//        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_USERS, STATISTICS_KEYS.INIT_INDEX_VAL)
-//        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS, STATISTICS_KEYS.INIT_INDEX_VAL)
-//        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_CHANNELS, STATISTICS_KEYS.INIT_INDEX_VAL)
-//        statisticsStorage.setLongValue(STATISTICS_KEYS.MAX_CHANNEL_INDEX, STATISTICS_KEYS.INIT_INDEX_VAL)
-//    }
-//
-//    @BeforeEach
-//    private fun init() {
-//        initStatistics()
-//        initTrees()
-//    }
-//
-//    @Test
-//    fun `gets the user id from the system`() {
-//        val aviadID = userManager.addUser("aviad", "aviad_password")
-//        userManager.addUser("ron", "ron_password")
-//        assertThat(userManager.getUserId("aviad"), equalTo(aviadID))
-//    }
+package il.ac.technion.cs.softwaredesign.tests
+
+import com.authzee.kotlinguice4.getInstance
+import com.google.common.primitives.Longs
+import com.google.inject.Guice
+import com.natpryce.hamkrest.assertion.assertThat
+import com.natpryce.hamkrest.equalTo
+import com.natpryce.hamkrest.hasElement
+import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
+import il.ac.technion.cs.softwaredesign.storage.SecureStorageFactory
+import il.ac.technion.cs.softwaredesign.storage.statistics.IStatisticsStorage
+import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES
+import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS
+import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST
+import org.junit.jupiter.api.*
+import java.util.concurrent.CompletableFuture
+
+@TestInstance(TestInstance.Lifecycle.PER_METHOD)
+class UserManagerTest {
+
+    private val injector = Guice.createInjector(LibraryTestModule())
+
+    private val userManager = injector.getInstance<IUserManager>()
+
+    private fun initTrees() {
+        val factory = injector.getInstance<SecureStorageFactory>()
+        val s1 = factory.open(DB_NAMES.TREE_USERS_BY_CHANNELS_COUNT.toByteArray()).get()
+        val s2 = factory.open(DB_NAMES.TREE_CHANNELS_BY_ACTIVE_USERS_COUNT.toByteArray()).get()
+        val s3 = factory.open(DB_NAMES.TREE_CHANNELS_BY_USERS_COUNT.toByteArray()).get()
+        s1.write(TREE_CONST.ROOT_KEY.toByteArray(), Longs.toByteArray(TREE_CONST.ROOT_INIT_INDEX)).get()
+        s2.write(TREE_CONST.ROOT_KEY.toByteArray(), Longs.toByteArray(TREE_CONST.ROOT_INIT_INDEX)).get()
+        s3.write(TREE_CONST.ROOT_KEY.toByteArray(), Longs.toByteArray(TREE_CONST.ROOT_INIT_INDEX)).get()
+    }
+
+    private fun initStatistics() {
+        val statisticsStorage = injector.getInstance<IStatisticsStorage>()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_USERS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_CHANNELS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.MAX_CHANNEL_INDEX, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+    }
+
+    @BeforeEach
+    private fun init() {
+        initStatistics()
+        initTrees()
+    }
+
+    @Test
+    fun `gets the user id from the system`() {
+        val aviadID = userManager.addUser("aviad", "aviad_password").get()
+//                .thenCompose { userManager.addUser("ron", "ron_password"); CompletableFuture.supplyAsync{it} }
+//                .get()
+
+        assertThat(userManager.getUserId("aviad").get() , equalTo(aviadID))
+    }
 //
 //    @Test
 //    fun `returns null if user does not exist in the system`() {
@@ -302,4 +305,4 @@
 //            assertThat(userId, equalTo(ids[k]))
 //        }
 //    }
-//}
+}
