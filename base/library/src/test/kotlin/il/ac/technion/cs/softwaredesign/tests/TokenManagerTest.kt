@@ -8,6 +8,7 @@ import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.util.concurrent.CompletableFuture
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 class TokenManagerTest{
@@ -21,14 +22,14 @@ class TokenManagerTest{
      */
     @Test
     fun `token that has'nt been written to the system is not exist`() {
-        every{userStorage.getUserIdByToken(any()) } returns null
-        assertWithTimeout({ tokenManager.isTokenValid("InvalidToken")}, isFalse)
+        every{userStorage.getUserIdByToken(any()) } returns CompletableFuture.supplyAsync{null}
+        assertWithTimeout({ tokenManager.isTokenValid("InvalidToken").get()}, isFalse)
     }
 
     @Test
     fun `token that has been written to the system is exist`() {
-        every { userStorage.getUserIdByToken("validToken") } returns 5L
-        assertWithTimeout({ tokenManager.isTokenValid("validToken") }, isTrue)
+        every { userStorage.getUserIdByToken("validToken") } returns CompletableFuture.supplyAsync{5L}
+        assertWithTimeout({ tokenManager.isTokenValid("validToken").get() }, isTrue)
     }
 
 
@@ -37,8 +38,8 @@ class TokenManagerTest{
      */
     @Test
     fun `returned user compatible to written token-user mapping`() {
-        every{ userStorage.getUserIdByToken("aviad")} returns 10L
-        assertWithTimeout({ tokenManager.getUserIdByToken("aviad") }, equalTo(10L))
+        every{ userStorage.getUserIdByToken("aviad")} returns CompletableFuture.supplyAsync{10L}
+        assertWithTimeout({ tokenManager.getUserIdByToken("aviad").get() }, equalTo(10L))
     }
 
     /**
@@ -59,19 +60,21 @@ class TokenManagerTest{
 
     @Test
     fun `token been invalidated`() {
-       every { userStorage.setUserIdToToken(any(),any()) } answers {  }
-        every{ userStorage.getUserIdByToken(any())} returns 1L
-        val token=tokenManager.assignTokenToUserId(1L)
-        assertWithTimeout({tokenManager.isTokenValid(token)}, isTrue)
-        tokenManager.invalidateUserToken(token)
-        every{ userStorage.getUserIdByToken(token)} returns INVALID_USER_ID
-        assertWithTimeout({tokenManager.isTokenValid(token)}, isFalse)
+        every { userStorage.setUserIdToToken(any(),any()) } answers { CompletableFuture.supplyAsync{Unit} }
+        every{ userStorage.getUserIdByToken(any())} returns CompletableFuture.supplyAsync{null}
+        val token = tokenManager.assignTokenToUserId(1L).join()
+        every{ userStorage.getUserIdByToken(any())} returns CompletableFuture.supplyAsync{1L}
+        assertWithTimeout({tokenManager.isTokenValid(token).get()}, isTrue)
+        tokenManager.invalidateUserToken(token).join()
+        every{ userStorage.getUserIdByToken(token)} returns CompletableFuture.supplyAsync{INVALID_USER_ID}
+        assertWithTimeout({tokenManager.isTokenValid(token).get()}, isFalse)
+
     }
 
     @Test
     fun `throws IllegalArgumentException if token does not belong to any user`() {
-        every {userStorage.getUserIdByToken(any())} returns 1L
-        every{ userStorage.getUserIdByToken("invalidToken")} returns null
-        assertThrowsWithTimeout<Unit, IllegalArgumentException>({ tokenManager.invalidateUserToken("invalidToken") })
+        every {userStorage.getUserIdByToken(any())} returns CompletableFuture.supplyAsync{1L}
+        every{ userStorage.getUserIdByToken("invalidToken")} returns CompletableFuture.supplyAsync{null}
+        assertThrowsWithTimeout<Unit, IllegalArgumentException>({ tokenManager.invalidateUserToken("invalidToken").joinException() })
     }
 }

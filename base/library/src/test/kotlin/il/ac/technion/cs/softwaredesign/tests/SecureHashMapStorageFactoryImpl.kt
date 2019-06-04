@@ -2,6 +2,7 @@ package il.ac.technion.cs.softwaredesign.tests
 
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.SecureStorageFactory
+import java.util.concurrent.CompletableFuture
 
 class SecureHashMapStorageFactoryImpl : SecureStorageFactory {
     class ByteArrayKey(private val bytes: ByteArray) {
@@ -12,13 +13,13 @@ class SecureHashMapStorageFactoryImpl : SecureStorageFactory {
     }
     private val storages = mutableMapOf<ByteArrayKey, SecureStorage>()
 
-    override fun open(name: ByteArray): SecureStorage {
+    override fun open(name: ByteArray): CompletableFuture<SecureStorage> {
         var storage = storages[ByteArrayKey(name)]
         if (storage == null) {
             storage = SecureStorageHashMap()
             storages[ByteArrayKey(name)] = storage
             Thread.sleep(100)
         }
-        return storage
+        return CompletableFuture.supplyAsync{storage}
     }
 }

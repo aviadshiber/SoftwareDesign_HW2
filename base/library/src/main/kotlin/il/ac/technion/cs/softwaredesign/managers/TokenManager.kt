@@ -12,12 +12,13 @@ import javax.inject.Singleton
 class TokenManager @Inject constructor(private val userStorage: IUserStorage) : ITokenManager {
 
     override fun isTokenValid(token: String): CompletableFuture<Boolean> {
-        return userStorage.getUserIdByToken(token).thenApply { if(it==null) null else it != INVALID_USER_ID }
+        return userStorage.getUserIdByToken(token).thenApply { if(it==null) false else it != INVALID_USER_ID }
     }
 
     override fun getUserIdByToken(token: String): CompletableFuture<Long?> {
         return userStorage.getUserIdByToken(token)
-                .thenApply {  if (it == null || it == INVALID_USER_ID)  null else it }
+                .thenApply {    if (it == null || it == INVALID_USER_ID)  null
+                                else it }
     }
 
     override fun assignTokenToUserId(userId: Long): CompletableFuture<String> {

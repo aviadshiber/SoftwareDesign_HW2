@@ -16,6 +16,7 @@ import io.mockk.slot
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.*
+import java.util.concurrent.CompletableFuture
 import kotlin.random.Random
 
 
@@ -59,12 +60,13 @@ class SecureAVLTreeTest {
             val value  =valueSlot.captured
             val key= ByteArrayKey(keySlot.captured)
             storageMock[key]=value
+            CompletableFuture.supplyAsync{Unit}
         }
         every {
             storageLayer.read(capture(keySlot))
         } answers {
             val key = ByteArrayKey(keySlot.captured)
-            storageMock[key]
+            CompletableFuture.supplyAsync{storageMock[key]}
         }
 
     }
