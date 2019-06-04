@@ -78,21 +78,19 @@ class UserManager
     }
 
     override fun updateUserStatus(userId: Long, status: LoginStatus) :CompletableFuture<Unit> {
-
-            return getUserStatus(userId).thenApply{ if(it == status) Unit }.thenCompose{
+        return getUserStatus(userId).thenCompose{
+            if(it == status) CompletableFuture.supplyAsync{Unit}
+            else {
                 userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.STATUS_PROPERTY, status.ordinal.toString())
-                        .thenCompose {
-                            if (status == LoginStatus.IN) {
-                                statisticsManager.increaseLoggedInUsersBy()
-                            } else {
-                                statisticsManager.decreaseLoggedInUsersBy()
-                            }
+                    .thenCompose {
+                        if (status == LoginStatus.IN) {
+                            statisticsManager.increaseLoggedInUsersBy()
+                        } else {
+                            statisticsManager.decreaseLoggedInUsersBy()
                         }
-
-
-
-            }.exceptionally {/* user id does not exist, do nothing */  }
-
+                    }
+            }
+        }.exceptionally {/* user id does not exist, do nothing */  }
     }
 
 
@@ -166,14 +164,12 @@ class UserManager
 
     /** USER COMPLEX STATISTICS **/
     override fun getTop10UsersByChannelsCount(): CompletableFuture<List<String>> {
-
         return  getTotalUsers()
                 .thenCompose { buildTop10UsersByChannelCountList(it) }
 
     }
 
     private fun buildTop10UsersByChannelCountList(nrOutputUsers: Long ) : CompletableFuture<List<String>> {
-
         val higherUserIndex=nrOutputUsers-1
         val lowestUserIndex= nrOutputUsers-min(10, nrOutputUsers)
         val topUsers=buildTopUsersFromHigherToLower(higherUserIndex,lowestUserIndex)
@@ -185,9 +181,9 @@ class UserManager
             Future{ mutableListOf<String>()}
         }else{
             //TODO: fix after tree refactoring (remove Future init)
-            val selectedIdFuture= Future{usersByChannelsCountTree.select(higherUserIndex).getId()}
+            val selectedIdFuture= Future{usersByChannelsCountTree.select(lowerUserIndex).getId()}
             val userNameFuture= selectedIdFuture.thenCompose { getUsernameById(it) }
-            buildTopUsersFromHigherToLower(higherUserIndex-1,lowerUserIndex)
+            buildTopUsersFromHigherToLower(higherUserIndex,lowerUserIndex+1)
                     .thenCompose { list-> userNameFuture.thenApply { name-> list.add(name); list } }
         }
 
