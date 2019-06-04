@@ -9,7 +9,7 @@ object MANAGERS_CONSTS{
     const val USERNAME_PROPERTY="username"
     const val PASSWORD_PROPERTY="password"
     const val STATUS_PROPERTY="status"
-    const val PRIVILAGE_PROPERTY="privilage"
+    const val PRIVILEGE_PROPERTY="privilage"
 
     const val LIST_PROPERTY="list"
     const val SIZE_PROPERTY="size"

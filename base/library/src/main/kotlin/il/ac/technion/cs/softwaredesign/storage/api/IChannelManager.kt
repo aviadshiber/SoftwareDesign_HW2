@@ -1,6 +1,7 @@
 package il.ac.technion.cs.softwaredesign.storage.api
 
 import java.lang.IllegalArgumentException
+import java.util.concurrent.CompletableFuture
 
 interface IChannelManager {
     /**
@@ -9,7 +10,7 @@ interface IChannelManager {
      * @throws IllegalArgumentException if channelName is already exist
      * @return Long, channel id
      */
-    fun addChannel(channelName: String): Long
+    fun addChannel(channelName: String): CompletableFuture<Long>
 
     /**
      * Remove channel from the system
@@ -22,14 +23,14 @@ interface IChannelManager {
      * @param channelName String
      * @return Boolean - true if exist, false if not
      */
-    fun isChannelNameExists(channelName : String) : Boolean
+    fun isChannelNameExists(channelName : String) : CompletableFuture<Boolean>
 
     /**
      * Check if channel id already exist in the system
      * @param channelId Long
      * @return Boolean - true if exist, false if not
      */
-    fun isChannelIdExists(channelId : Long) : Boolean
+    fun isChannelIdExists(channelId : Long) : CompletableFuture<Boolean>
 
     /**
      * Get channelId that match channelName
@@ -37,7 +38,7 @@ interface IChannelManager {
      * @throws IllegalArgumentException if channelName does not exist
      * @return Long, channel id
      */
-    fun getChannelIdByName(channelName : String) : Long
+    fun getChannelIdByName(channelName : String) : CompletableFuture<Long>
 
     /**
      * Get channel name
@@ -45,13 +46,13 @@ interface IChannelManager {
      * @throws IllegalArgumentException throws if channel id does not exist in the system
      * @return String, channel name
      */
-    fun getChannelNameById(channelId : Long) : String
+    fun getChannelNameById(channelId : Long) : CompletableFuture<String>
 
     /**
      * get number of channels in the system
      * @return Long
      */
-    fun getNumberOfChannels() : Long
+    fun getNumberOfChannels() : CompletableFuture<Long>
 
 
     /** NUMBER OF ACTIVE MEMBERS **/
@@ -62,7 +63,7 @@ interface IChannelManager {
      * @throws IllegalArgumentException throws if channel id does not exist in the system
      * @return Long, number of active members
      */
-    fun getNumberOfActiveMembersInChannel(channelId : Long) : Long
+    fun getNumberOfActiveMembersInChannel(channelId : Long) : CompletableFuture<Long>
 
     /**
      * increase the number of active members in a specific channel by [count]
@@ -88,7 +89,7 @@ interface IChannelManager {
      * @throws IllegalArgumentException throws if channel id does not exist in the system
      * @return Long, number of total members
      */
-    fun getNumberOfMembersInChannel(channelId : Long) : Long
+    fun getNumberOfMembersInChannel(channelId : Long) : CompletableFuture<Long>
 
     /**
      * gets members list of a specific channel
@@ -96,7 +97,7 @@ interface IChannelManager {
      * @throws IllegalArgumentException throws if channelId does not exist in the system
      * @return ids of the members of current channel
      */
-    fun getChannelMembersList(channelId: Long) : List<Long>
+    fun getChannelMembersList(channelId: Long) : CompletableFuture<List<Long>>
 
     /**
      * add a member to a specific channel
@@ -106,7 +107,7 @@ interface IChannelManager {
      * @throws IllegalArgumentException throws if channel Id does not exist in the system
      * @throws IllegalAccessException throws if memberId already exists in channel
      */
-    fun addMemberToChannel(channelId:Long, memberId:Long)
+    fun addMemberToChannel(channelId:Long, memberId:Long): CompletableFuture<Unit>
 
     /**
      * removes a member from a specific channel
@@ -116,7 +117,7 @@ interface IChannelManager {
      * @throws IllegalArgumentException throws if channel Id or member id does not exist in the system
      * @throws IllegalAccessException throws if memberId does not exist in channel
      */
-    fun removeMemberFromChannel(channelId: Long,memberId: Long)
+    fun removeMemberFromChannel(channelId: Long,memberId: Long): CompletableFuture<Unit>
 
 
     /** OPERATORS LIST **/
@@ -126,7 +127,7 @@ interface IChannelManager {
      * @throws IllegalArgumentException throws if channelId does not exist in the system
      * @return ids of the operators of current channel
      */
-    fun getChannelOperatorsList(channelId: Long) : List<Long>
+    fun getChannelOperatorsList(channelId: Long) : CompletableFuture<List<Long>>
 
     /**
      * add an operators to a specific channel
@@ -135,7 +136,7 @@ interface IChannelManager {
      * @param operatorId operators Id
      * @throws IllegalArgumentException throws if channel Id does not exist in the system
      */
-    fun addOperatorToChannel(channelId:Long, operatorId:Long)
+    fun addOperatorToChannel(channelId:Long, operatorId:Long): CompletableFuture<Unit>
 
     /**
      * removes an operators from a specific channel
@@ -144,7 +145,7 @@ interface IChannelManager {
      * @param operatorId operators Id
      * @throws IllegalArgumentException throws if channel Id does not exist in the system
      */
-    fun removeOperatorFromChannel(channelId: Long, operatorId: Long)
+    fun removeOperatorFromChannel(channelId: Long, operatorId: Long): CompletableFuture<Unit>
 
 
     /** CHANNEL COMPLEX STATISTICS **/
@@ -152,11 +153,11 @@ interface IChannelManager {
      * Get a list contains 10 best channels by users count (or less than 10 if nr of total channels < 10)
      * @return List<String> of channel names
      */
-    fun getTop10ChannelsByUsersCount() : List<String>
+    fun getTop10ChannelsByUsersCount() : CompletableFuture<List<String>>
 
     /**
      * Get a list contains 10 best channels by active users count (or less than 10 if nr of total channels < 10)
      * @return List<String> of channel names
      */
-    fun getTop10ChannelsByActiveUsersCount() : List<String>
+    fun getTop10ChannelsByActiveUsersCount() : CompletableFuture<List<String>>
 }
