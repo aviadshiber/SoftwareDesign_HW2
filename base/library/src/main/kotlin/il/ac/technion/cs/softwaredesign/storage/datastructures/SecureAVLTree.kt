@@ -11,6 +11,7 @@ import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.ROOT_KEY
 import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.SECURE_AVL_STORAGE_NUM_PROPERTIES
 import java.lang.NullPointerException
 import java.util.*
+import java.util.concurrent.CompletableFuture
 
 /**
  * The `SecureAVLTree` class represents an ordered symbol table of
@@ -53,30 +54,33 @@ import java.util.*
  */
 class SecureAVLTree<Key : ISecureStorageKey<Key>>
 constructor(private val secureStorage: SecureStorage, private val keyDefault: () -> Key) {
+    val addressGenerator: ISequenceGenerator = SecureSequenceGenerator(secureStorage)
     /**
      * The root node.
      */
-    private var root: Node? = null
+    private var root: CompletableFuture<Node?> = CompletableFuture.supplyAsync{null}
         get() {
-            val rootIndexByteArray = secureStorage.read(ROOT_KEY.toByteArray())
-                    ?: throw NullPointerException("root Index should not be null after loading from storage")
-            val rootIndex = rootIndexByteArray.bytesToLong()
-
-            if (rootIndex <= ROOT_INIT_INDEX) return null
-
-            val rootByteArray = secureStorage.read(rootIndexByteArray)
-                        ?: throw NullPointerException("root cannot be null")
-            return Node(rootByteArray, Pointer(rootIndex))
-
+            return secureStorage.read(ROOT_KEY.toByteArray()).thenCompose {
+                val rootIndex = it?.bytesToLong() ?: throw NullPointerException("root Index should not be null after loading from storage")
+                if (rootIndex <= ROOT_INIT_INDEX) null
+                else {
+                    secureStorage.read(it).thenCompose { root->
+                        if (root == null) throw NullPointerException("root cannot be null")
+                        createNode(root, Pointer(rootIndex))
+                    }
+                }
+            }
         }
         set(value) {
             val rootKeyByteArray = ROOT_KEY.toByteArray()
-            if (value == null) {
-                secureStorage.write(rootKeyByteArray,ROOT_INIT_INDEX.longToByteArray())
-                field = null
-            } else {
-                secureStorage.write(rootKeyByteArray, value.pointer.toByteArray())
-                field = value
+            value.thenCompose<Unit> {
+                if (it==null) {
+                    field = CompletableFuture.supplyAsync{null}
+                    secureStorage.write(rootKeyByteArray,ROOT_INIT_INDEX.longToByteArray())
+                } else {
+                    field = value
+                    secureStorage.write(rootKeyByteArray, it.pointer.toByteArray())
+                }
             }
         }
 
@@ -85,7 +89,7 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
      *
      * @return `true` if the symbol table is empty.
      */
-    fun isEmpty(): Boolean = root == null
+    fun isEmpty(): CompletableFuture<Boolean> = root.thenApply { it == null }
 
 
     /**
@@ -93,8 +97,8 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
      *
      * @return the number key-value pairs in the symbol table
      */
-    fun size(): Long {
-        return size(root)
+    fun size(): CompletableFuture<Long> {
+        return root.thenCompose { size(it) }
     }
 
     /**
@@ -104,8 +108,8 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
      *
      * @return the number of nodes in the subtree
      */
-    private fun size(x: Node?): Long {
-        return x?.size ?: 0
+    private fun size(x: Node?): CompletableFuture<Long> {
+        return x?.size ?: CompletableFuture.supplyAsync{0L}
     }
 
     /**
@@ -115,8 +119,8 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
      *
      * @return the height of the internal AVL tree (-1 is returned if tree is empty)
      */
-    fun height(): Long {
-        return height(root)
+    fun height(): CompletableFuture<Long> {
+        return root.thenCompose { height(it) }
     }
 
     /**
@@ -126,8 +130,8 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
      *
      * @return the height of the subtree -1 is returned if x subtree is empty
      */
-    private fun height(x: Node?): Long {
-        return x?.height ?: -1
+    private fun height(x: Node?): CompletableFuture<Long> {
+        return x?.height ?: CompletableFuture.supplyAsync{-1L}
     }
 
     /**
@@ -138,9 +142,13 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
      * symbol table and `null` if the key is not in the
      * symbol table
      */
-    operator fun get(key: Key): Key? {
-        val x = get(root, key) ?: return null
-        return x.key
+    operator fun get(key: Key): CompletableFuture<Key?> {
+        return root.thenCompose {
+            get(it, key)
+        }.thenCompose<Key?> {
+            if (it == null) CompletableFuture.supplyAsync{null}
+            else it.key
+        }
     }
 
 
@@ -153,54 +161,110 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
      * @return value associated with the given key in the subtree or
      * `null` if no such key
      */
-    private operator fun get(x: Node?, key: Key): Node? {
-        if (x == null) return null
-        val cmp = key.compareTo(x.key)
-        return when {
-            cmp < 0 -> get(x.left, key)
-            cmp > 0 -> get(x.right, key)
-            else -> x
+    private operator fun get(x: Node?, key: Key): CompletableFuture<Node?> {
+        if (x == null) return CompletableFuture.supplyAsync{null}
+        return x.key.thenCompose { k->
+            val cmp = key.compareTo(k)
+            when {
+                cmp < 0 -> x.left.thenCompose { left->
+                    get(left, key)
+                }
+                cmp > 0 -> x.right.thenCompose { right->
+                    get(right, key)
+                }
+                else -> CompletableFuture.supplyAsync{x}
+            }
         }
     }
 
-    /**
-     * Checks if the symbol table contains the given key.
-     *
-     * @param key the key
-     * @return `true` if the symbol table contains `key`
-     * and `false` otherwise
-     */
-    operator fun contains(key: Key): Boolean {
-        return get(key) != null
+    class params() {
+        var leftSize: Long = 0L
+        var rightSize: Long = 0L
+        var leftheight: Long = 0L
+        var rightheight: Long = 0L
     }
 
-    /**
-     * Inserts the specified key-value pair into the symbol table, overwriting
-     * the old value with the new value if the symbol table already contains the
-     * specified key. Deletes the specified key (and its associated value) from
-     * this symbol table if the specified value is `null`.
-     *
-     * @param key the key
-     * @param `value` the value
-     */
-    fun put(key: Key) {
-        root = put(root, key)
-        assert(check())
-    }
+    private fun put(x: Node?, key: Key): CompletableFuture<Node?> {
+        if (x == null) return createNode(key, 0, 1)
+        return x.key.thenCompose<Node> { k ->
+            val cmp = key.compareTo(k)
+            val p: params = params()
+            when {
+                cmp < 0 -> x.left.thenCompose { left->
+                    val res = put(left, key)
+                    x.left = res
+                    res
+                }.thenCompose {
+                    x.left.thenCompose {
+                        it!!.size.thenCompose {
+                            p.leftSize = it
+                            CompletableFuture.supplyAsync{x}
+                        }
+                    }
+                }.thenCompose {
+                    x.right.thenCompose {
+                        it!!.size.thenCompose {
+                            p.rightSize = it
+                            CompletableFuture.supplyAsync{x}
+                        }
+                    }
+                }.thenCompose {
+                    x.left.thenCompose {
+                        it!!.height.thenCompose {
+                            p.leftheight = it
+                            CompletableFuture.supplyAsync{x}
+                        }
+                    }
+                }.thenCompose {
+                    x.right.thenCompose {
+                        it!!.height.thenCompose {
+                            p.rightheight = it
+                            CompletableFuture.supplyAsync{x}
+                        }
+                    }
+                }
 
-    /**
-     * Inserts the key-value pair in the subtree. It overrides the old value
-     * with the new value if the symbol table already contains the specified key
-     * and deletes the specified key (and its associated value) from this symbol
-     * table if the specified value is `null`.
-     *
-     * @param x the subtree
-     * @param key the key
-     * @param `value` the value
-     * @return the subtree
-     */
-    private fun put(x: Node?, key: Key): Node {
-        if (x == null) return Node(key, 0, 1)
+                cmp > 0 -> x.right.thenCompose { right->
+                    val res = put(right, key)
+                    x.right = res
+                    res
+                }.thenCompose {
+                    x.left.thenCompose {
+                        it!!.size.thenCompose {
+                            p.leftSize = it
+                            CompletableFuture.supplyAsync{x}
+                        }
+                    }
+                }.thenCompose {
+                    x.right.thenCompose {
+                        it!!.size.thenCompose {
+                            p.rightSize = it
+                            CompletableFuture.supplyAsync{x}
+                        }
+                    }
+                }.thenCompose {
+                    x.left.thenCompose {
+                        it!!.height.thenCompose {
+                            p.leftheight = it
+                            CompletableFuture.supplyAsync{x}
+                        }
+                    }
+                }.thenCompose {
+                    x.right.thenCompose {
+                        it!!.height.thenCompose {
+                            p.rightheight = it
+                            CompletableFuture.supplyAsync{x}
+                        }
+                    }
+                }
+                else -> {
+                    CompletableFuture.supplyAsync{x}
+                }
+            }
+        }
+
+
+
         val cmp = key.compareTo(x.key)
         when {
             cmp < 0 -> x.left = put(x.left, key)
@@ -215,12 +279,63 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
     }
 
     /**
+     * Checks if the symbol table contains the given key.
+     *
+     * @param key the key
+     * @return `true` if the symbol table contains `key`
+     * and `false` otherwise
+     */
+    fun contains(key: Key): CompletableFuture<Boolean> {
+        return get(key).thenApply { it != null }
+    }
+
+    /**
+     * Inserts the specified key-value pair into the symbol table, overwriting
+     * the old value with the new value if the symbol table already contains the
+     * specified key. Deletes the specified key (and its associated value) from
+     * this symbol table if the specified value is `null`.
+     *
+     * @param key the key
+     * @param `value` the value
+     */
+    fun put(key: Key) {
+        root = put(root, key)
+//        assert(check())
+    }
+
+    /**
+     * Inserts the key-value pair in the subtree. It overrides the old value
+     * with the new value if the symbol table already contains the specified key
+     * and deletes the specified key (and its associated value) from this symbol
+     * table if the specified value is `null`.
+     *
+     * @param x the subtree
+     * @param key the key
+     * @param `value` the value
+     * @return the subtree
+     */
+//    private fun put(x: Node?, key: Key): Node {
+//        if (x == null) return Node(key, 0, 1)
+//        val cmp = key.compareTo(x.key)
+//        when {
+//            cmp < 0 -> x.left = put(x.left, key)
+//            cmp > 0 -> x.right = put(x.right, key)
+//            else -> {
+//                return x
+//            }
+//        }
+//        x.size = 1L + size(x.left) + size(x.right)
+//        x.height = 1L + Math.max(height(x.left), height(x.right))
+//        return balance(x)
+//    }
+
+    /**
      * Restores the AVL tree property of the subtree.
      *
      * @param x the subtree
      * @return the subtree with restored AVL property
      */
-    private fun balance(x: Node): Node {
+    private fun balance(x: Node): CompletableFuture<Node> {
         var traversalX = x // x is immutable so we put it in a var :)
         if (balanceFactor(traversalX) < -1) {
             if (balanceFactor(traversalX.right!!) > 0) {
@@ -658,30 +773,68 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
         return ConversionUtils.bytesToLong(this)
     }
 
+    private fun createNode() : CompletableFuture<Node> {
+        return addressGenerator.next().thenApply {
+            val node = Node()
+            node.pointer = Pointer(it)
+            node
+        }
+    }
 
+    private fun createNode(key: CompletableFuture<Key>, height: CompletableFuture<Long>, size: CompletableFuture<Long>) : CompletableFuture<Node> {
+        return createNode()
+                .thenCombine(key) { node, k -> node.nodeKey = k; node}
+                .thenCombine(height) { node, h -> node.nodeHeight = h; node}
+                .thenCombine(size) { node, s -> node.nodeSize = s; node}
+    }
+
+    private fun createNode(key: Key, height: Long, size: Long) : CompletableFuture<Node?> {
+        return createNode()
+                .thenApply { it.key = CompletableFuture.supplyAsync{key}; it }
+                .thenApply { it.height = CompletableFuture.supplyAsync{height}; it }
+                .thenApply { it.size = CompletableFuture.supplyAsync{size}; it }
+    }
+
+    private fun createNode(nodeByteArray: ByteArray, pointer: IPointer): CompletableFuture<Node?> {
+        return createNode().thenApply { it.fromByteArray(nodeByteArray); it.pointer = pointer; it }
+    }
     /**
      * This class represents an inner node of the AVL tree.
      */
     private inner class Node : IStorageConvertable<Node> {
-        val addressGenerator: ISequenceGenerator = SecureSequenceGenerator(secureStorage)
 
-        var pointer: IPointer
+        lateinit var pointer: IPointer
 
-        private var nodeHeight: Long = 0
-        private var nodeSize: Long = 0
-        private var leftPointer: IPointer? = null
-        private var rightPointer: IPointer? = null
-        private var nodeKey: Key = keyDefault()
+        var nodeHeight: Long = 0
+        var nodeSize: Long = 0
+        var leftPointer: IPointer? = null
+        var rightPointer: IPointer? = null
+        var nodeKey: Key = keyDefault()
+
+        constructor()
 
         constructor(key: Key, height: Long, size: Long) {
+            addressGenerator.next().thenApply {
+                this.pointer = Pointer(it)
+            }
+
             this.nodeKey = key
             this.nodeHeight = height
             this.nodeSize = size
-            this.pointer = Pointer(addressGenerator.next())
             val pointerByteArray = pointer.toByteArray()
             val nodeByteArray = this.toByteArray()
             secureStorage.write(pointerByteArray, nodeByteArray)
         }
+
+//        constructor(key: Key, height: Long, size: Long) {
+//            this.nodeKey = key
+//            this.nodeHeight = height
+//            this.nodeSize = size
+//            this.pointer = Pointer(addressGenerator.next())
+//            val pointerByteArray = pointer.toByteArray()
+//            val nodeByteArray = this.toByteArray()
+//            secureStorage.write(pointerByteArray, nodeByteArray)
+//        }
 
         //copy ctor
         private constructor(value: Node) {
@@ -699,77 +852,104 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
         }
 
 
-        var height: Long
+        var height: CompletableFuture<Long>
             get() {
-                loadNodeFromStorage()
-                return nodeHeight
+                return loadNodeFromStorage().thenApply {
+                    nodeHeight
+                }
             }
             set(value) {
-                nodeHeight = value
-                storeNodeInStorage()
+                value.thenApply {
+                    nodeHeight = it
+                }.thenCombine(storeNodeInStorage()) { _, _ -> Unit}
             }
 
-        var size: Long
+        var size: CompletableFuture<Long>
             get() {
-                loadNodeFromStorage()
-                return nodeSize
+                return loadNodeFromStorage().thenApply {
+                    nodeSize
+                }
             }
             set(value) {
-                nodeSize = value
-                storeNodeInStorage()
+                value.thenApply {
+                    nodeSize = it
+                }.thenCombine(storeNodeInStorage()) { _, _ -> Unit}
             }
 
-        var left: Node?    // left subtree
+        var left: CompletableFuture<Node?>     // right subtree
             get() {
-                loadNodeFromStorage()
-                if (leftPointer == null) return null
-                val leftNodeByteArray = secureStorage.read(leftPointer!!.toByteArray())
-                        ?: throw NullPointerException("left pointer does not exist in the storage")
-                return Node(leftNodeByteArray, leftPointer!!)
+                return loadNodeFromStorage().thenCompose<Node?> {
+                    if (leftPointer == null) CompletableFuture.supplyAsync { null }
+                    else {
+                        secureStorage.read(leftPointer!!.toByteArray()).thenCompose {
+                            if (it == null) throw NullPointerException("right pointer does not exist in the storage")
+                            createNode(it, leftPointer!!)
+                        }
+                    }
+                }
             }
             set(value) {
-                this.leftPointer = value?.pointer
-                storeNodeInStorage()
+                value.thenApply {
+                    this.leftPointer = it?.pointer
+                }.thenCombine(storeNodeInStorage()) { _, _ -> Unit}
             }
 
-        var right: Node?      // right subtree
+        var right: CompletableFuture<Node?>     // right subtree
             get() {
-                loadNodeFromStorage()
-                if (rightPointer == null) return null
-                val rightNodeByteArray = secureStorage.read(rightPointer!!.toByteArray())
-                        ?: throw NullPointerException("right pointer does not exist in the storage")
-                return Node(rightNodeByteArray, rightPointer!!)
+                return loadNodeFromStorage().thenCompose<Node?> {
+                    if (rightPointer == null) CompletableFuture.supplyAsync { null }
+                    else {
+                        secureStorage.read(rightPointer!!.toByteArray()).thenCompose {
+                            if (it == null) throw NullPointerException("right pointer does not exist in the storage")
+                            createNode(it, rightPointer!!)
+                        }
+                    }
+                }
             }
             set(value) {
-                this.rightPointer = value?.pointer
-                storeNodeInStorage()
+                value.thenApply {
+                    this.rightPointer = it?.pointer
+                }.thenCombine(storeNodeInStorage()) { _, _ -> Unit}
             }
 
-        var key: Key
+        var key: CompletableFuture<Key>
             get() {
-                loadNodeFromStorage()
-                return nodeKey
+                return loadNodeFromStorage().thenApply {
+                    nodeKey
+                }
             }
             set(value) {
-                nodeKey = value
-                storeNodeInStorage()
+                value.thenApply {
+                    nodeKey = it
+                }.thenCombine(storeNodeInStorage()) { _, _ -> Unit}
             }
 
         //private methods
+//        private fun storeNodeInStorage() {
+//            val pointerByteArray = pointer.toByteArray()
+//            secureStorage.write(pointerByteArray, this.toByteArray())
+//        }
 
+//        private fun loadNodeFromStorage() {
+//            val pointerByteArray = pointer.toByteArray()
+//            val nodeByteArray = secureStorage.read(pointerByteArray)
+//                    ?: throw NullPointerException("current pointer  does not exist in the storage")
+//            this.fromByteArray(nodeByteArray)
+//        }
 
-        private fun storeNodeInStorage() {
+        private fun storeNodeInStorage() : CompletableFuture<Unit> {
             val pointerByteArray = pointer.toByteArray()
-            secureStorage.write(pointerByteArray, this.toByteArray())
+            return secureStorage.write(pointerByteArray, this.toByteArray())
         }
 
-        private fun loadNodeFromStorage() {
+        private fun loadNodeFromStorage() : CompletableFuture<Unit> {
             val pointerByteArray = pointer.toByteArray()
-            val nodeByteArray = secureStorage.read(pointerByteArray)
-                    ?: throw NullPointerException("current pointer  does not exist in the storage")
-            this.fromByteArray(nodeByteArray)
+            return secureStorage.read(pointerByteArray).thenApply {
+                if (it == null) throw NullPointerException("current pointer  does not exist in the storage")
+                this.fromByteArray(it)
+                Unit
+            }
         }
-
 
         override fun toByteArray(): ByteArray {
             // <height><size><left><right><key> , key is last because it can may be size bigger than long
@@ -791,8 +971,6 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
                     rightPointerByteArray+nodeKey.toByteArray()
 
         }
-
-
 
         override fun fromByteArray(value: ByteArray) {
 
@@ -821,7 +999,7 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
         private fun extractDetails(storedValue: ByteArray): Pair<MutableList<Long>, Key> {
             var start=0
             var end=Long.SIZE_BYTES-1
-            var details= mutableListOf<Long>()
+            val details= mutableListOf<Long>()
             val numOfLongValues=SECURE_AVL_STORAGE_NUM_PROPERTIES-2
             for(i in 0..numOfLongValues) {
                 details.add(storedValue.sliceArray(IntRange(start,end)).bytesToLong())
@@ -835,89 +1013,89 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
         }
     }
 
-
-    /**
-     * Checks if the AVL tree invariants are fine.
-     *
-     * @return `true` if the AVL tree invariants are fine
-     */
-    private fun check(): Boolean {
-        return true
-//        if (!isBST()) println("Symmetric order not consistent")
-//        if (!isAVL()) println("AVL property not consistent")
-//        if (!isSizeConsistent()) println("Subtree counts not consistent")
-//        if (!isRankConsistent()) println("Ranks not consistent")
-//        return isBST() && isAVL() && isSizeConsistent() && isRankConsistent()
-    }
-
-    /**
-     * Checks if rank is consistent.
-     *
-     * @return `true` if rank is consistent
-     */
-    private fun isRankConsistent(): Boolean {
-        for (i in 0 until size())
-            if (i != rank(select(i))) return false
-        for (key in keys())
-            if (key.compareTo(select(rank(key))) != 0) return false
-        return true
-    }
-
-    /**
-     * Checks if AVL property is consistent in the subtree.
-     *
-     * @param x the subtree
-     * @return `true` if AVL property is consistent in the subtree
-     */
-    private fun isAVL(x: Node?): Boolean {
-        if (x == null) return true
-        val bf = balanceFactor(x)
-        return if (bf > 1 || bf < -1) false else isAVL(x.left) && isAVL(x.right)
-    }
-
-    /**
-     * Checks if the tree rooted at x is a BST with all keys strictly between
-     * min and max (if min or max is null, treat as empty constraint)
-     *
-     * @param x the subtree
-     * @param min the minimum key in subtree
-     * @param max the maximum key in subtree
-     * @return `true` if if the symmetric order is consistent
-     */
-    private fun isBST(x: Node?, min: Key?, max: Key?): Boolean {
-        if (x == null) return true
-        if (min != null && x.key <= min) return false
-        return if (max != null && x.key >= max) false else isBST(x.left, min, x.key) && isBST(x.right, x.key, max)
-    }
-
-    /**
-     * Checks if the size of the subtree is consistent.
-     *
-     * @return `true` if the size of the subtree is consistent
-     */
-    private fun isSizeConsistent(x: Node?): Boolean {
-        if (x == null) return true
-        return if (x.size != size(x.left) + size(x.right) + 1) false else isSizeConsistent(x.left) && isSizeConsistent(x.right)
-    }
-
-    /**
-     * Checks if AVL property is consistent.
-     *
-     * @return `true` if AVL property is consistent.
-     */
-    private fun isAVL(): Boolean = isAVL(root)
-
-    /**
-     * Checks if the symmetric order is consistent.
-     *
-     * @return `true` if the symmetric order is consistent
-     */
-    private fun isBST(): Boolean = isBST(root, null, null)
-
-    /**
-     * Checks if size is consistent.
-     *
-     * @return `true` if size is consistent
-     */
-    private fun isSizeConsistent(): Boolean = isSizeConsistent(root)
+//
+//    /**
+//     * Checks if the AVL tree invariants are fine.
+//     *
+//     * @return `true` if the AVL tree invariants are fine
+//     */
+//    private fun check(): Boolean {
+//        return true
+////        if (!isBST()) println("Symmetric order not consistent")
+////        if (!isAVL()) println("AVL property not consistent")
+////        if (!isSizeConsistent()) println("Subtree counts not consistent")
+////        if (!isRankConsistent()) println("Ranks not consistent")
+////        return isBST() && isAVL() && isSizeConsistent() && isRankConsistent()
+//    }
+//
+//    /**
+//     * Checks if rank is consistent.
+//     *
+//     * @return `true` if rank is consistent
+//     */
+//    private fun isRankConsistent(): Boolean {
+//        for (i in 0 until size())
+//            if (i != rank(select(i))) return false
+//        for (key in keys())
+//            if (key.compareTo(select(rank(key))) != 0) return false
+//        return true
+//    }
+//
+//    /**
+//     * Checks if AVL property is consistent in the subtree.
+//     *
+//     * @param x the subtree
+//     * @return `true` if AVL property is consistent in the subtree
+//     */
+//    private fun isAVL(x: Node?): Boolean {
+//        if (x == null) return true
+//        val bf = balanceFactor(x)
+//        return if (bf > 1 || bf < -1) false else isAVL(x.left) && isAVL(x.right)
+//    }
+//
+//    /**
+//     * Checks if the tree rooted at x is a BST with all keys strictly between
+//     * min and max (if min or max is null, treat as empty constraint)
+//     *
+//     * @param x the subtree
+//     * @param min the minimum key in subtree
+//     * @param max the maximum key in subtree
+//     * @return `true` if if the symmetric order is consistent
+//     */
+//    private fun isBST(x: Node?, min: Key?, max: Key?): Boolean {
+//        if (x == null) return true
+//        if (min != null && x.key <= min) return false
+//        return if (max != null && x.key >= max) false else isBST(x.left, min, x.key) && isBST(x.right, x.key, max)
+//    }
+//
+//    /**
+//     * Checks if the size of the subtree is consistent.
+//     *
+//     * @return `true` if the size of the subtree is consistent
+//     */
+//    private fun isSizeConsistent(x: Node?): Boolean {
+//        if (x == null) return true
+//        return if (x.size != size(x.left) + size(x.right) + 1) false else isSizeConsistent(x.left) && isSizeConsistent(x.right)
+//    }
+//
+//    /**
+//     * Checks if AVL property is consistent.
+//     *
+//     * @return `true` if AVL property is consistent.
+//     */
+//    private fun isAVL(): Boolean = isAVL(root)
+//
+//    /**
+//     * Checks if the symmetric order is consistent.
+//     *
+//     * @return `true` if the symmetric order is consistent
+//     */
+//    private fun isBST(): Boolean = isBST(root, null, null)
+//
+//    /**
+//     * Checks if size is consistent.
+//     *
+//     * @return `true` if size is consistent
+//     */
+//    private fun isSizeConsistent(): Boolean = isSizeConsistent(root)
 }
