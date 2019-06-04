@@ -16,7 +16,7 @@ interface IChannelManager {
      * Remove channel from the system
      * @param channelId Long
      */
-    fun removeChannel(channelId : Long)
+    fun removeChannel(channelId : Long): CompletableFuture<Unit>
 
     /**
      * Check if channelName already exist in the system

@@ -1,215 +1,258 @@
-//package il.ac.technion.cs.softwaredesign.tests
-//
-//import com.authzee.kotlinguice4.getInstance
-//import com.google.common.primitives.Longs
-//import com.google.inject.Guice
-//import com.natpryce.hamkrest.assertion.assertThat
-//import com.natpryce.hamkrest.equalTo
-//import il.ac.technion.cs.softwaredesign.storage.api.IChannelManager
-//import il.ac.technion.cs.softwaredesign.storage.SecureStorageFactory
-//import il.ac.technion.cs.softwaredesign.storage.statistics.IStatisticsStorage
-//import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES
-//import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
-//import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS
-//import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.ROOT_INIT_INDEX
-//import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.ROOT_KEY
-//import org.junit.jupiter.api.BeforeEach
-//import org.junit.jupiter.api.Test
-//import org.junit.jupiter.api.TestInstance
-//import org.junit.jupiter.api.assertThrows
-//
-//@TestInstance(TestInstance.Lifecycle.PER_METHOD)
-//class ChannelManagerTest {
-//    private val injector = Guice.createInjector(LibraryTestModule())
-//
-//    private val channelManager = injector.getInstance<IChannelManager>()
-//
-//    private fun initTrees() {
-//        val factory = injector.getInstance<SecureStorageFactory>()
-//        val s1 = factory.open(DB_NAMES.TREE_USERS_BY_CHANNELS_COUNT.toByteArray()).get()
-//        val s2 = factory.open(DB_NAMES.TREE_CHANNELS_BY_ACTIVE_USERS_COUNT.toByteArray()).get()
-//        val s3 = factory.open(DB_NAMES.TREE_CHANNELS_BY_USERS_COUNT.toByteArray()).get()
-//        s1.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX))
-//        s2.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX))
-//        s3.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX))
-//    }
-//
-//    private fun initStatistics() {
-//        val statisticsStorage = injector.getInstance<IStatisticsStorage>()
-//        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_USERS, STATISTICS_KEYS.INIT_INDEX_VAL)
-//        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS, STATISTICS_KEYS.INIT_INDEX_VAL)
-//        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_CHANNELS, STATISTICS_KEYS.INIT_INDEX_VAL)
-//        statisticsStorage.setLongValue(STATISTICS_KEYS.MAX_CHANNEL_INDEX, STATISTICS_KEYS.INIT_INDEX_VAL)
-//    }
-//
-//    @BeforeEach
-//    private fun init() {
-//        initStatistics()
-//        initTrees()
-//    }
-//
-//    @Test
-//    fun `add new channel does not throws`() {
-//        channelManager.addChannel("ron")
-//    }
-//
-//    @Test
-//    fun `cannot add invalid channel name`() {
-//        assertThrows<IllegalArgumentException> { channelManager.addChannel(MANAGERS_CONSTS.CHANNEL_INVALID_NAME) }
-//    }
-//
-//    @Test
-//    fun `add new channel return valid id`() {
-//        val id = channelManager.addChannel("ron")
-//        assertThat(id, !equalTo(MANAGERS_CONSTS.CHANNEL_INVALID_ID), { "addChannel channel returned invalid id" })
-//    }
-//
-//    @Test
-//    fun `add new channel throws if channel name exists`() {
-//        channelManager.addChannel("ron")
-//        assertThrows<IllegalArgumentException> { channelManager.addChannel("ron") }
-//    }
-//
-//    @Test
-//    fun `remove channel by name and add it again not throws`() {
-//        val id = channelManager.addChannel("ron")
-//        channelManager.removeChannel(id)
-//        channelManager.addChannel("ron")
-//    }
-//
-//    @Test
-//    fun `remove channel by id and add it again not throws`() {
-//        val id = channelManager.addChannel("ron")
-//        channelManager.removeChannel(id)
-//        channelManager.addChannel("ron")
-//    }
-//
-//    @Test
-//    fun `isChannelNameExists returned true`() {
-//        channelManager.addChannel("ron")
-//        assertThat(channelManager.isChannelNameExists("ron"), isTrue, { "channel name does not exist" })
-//    }
-//
-//    @Test
-//    fun `isChannelNameExists returned false if no channel added`() {
-//        assertThat(channelManager.isChannelNameExists("ron"), isFalse, { "channel name does not exist" })
-//    }
-//
-//    @Test
-//    fun `isChannelNameExists returned false if channel removed by name`() {
-//        val id = channelManager.addChannel("ron")
-//        channelManager.removeChannel(id)
-//        assertThat(channelManager.isChannelNameExists("ron"), isFalse, { "channel name does not exist" })
-//    }
-//
-//    @Test
-//    fun `isChannelNameExists returned false if channel removed by id`() {
-//        val id = channelManager.addChannel("ron")
-//        channelManager.removeChannel(id)
-//        assertThat(channelManager.isChannelNameExists("ron"), isFalse, { "channel name does not exist" })
-//    }
-//
-//    @Test
-//    fun `isChannelNameExists returned false for invalid name`() {
-//        assertThat(channelManager.isChannelNameExists(MANAGERS_CONSTS.CHANNEL_INVALID_NAME), isFalse,
-//                { "invalid channel name cannot be exists" })
-//    }
-//
-//    @Test
-//    fun `isChannelIdExists returned true`() {
-//        val id = channelManager.addChannel("ron")
-//        assertThat(channelManager.isChannelIdExists(id), isTrue, { "channel id does not exist" })
-//    }
-//
-//    @Test
-//    fun `isChannelIdExists returned false if no channel added`() {
-//        assertThat(channelManager.isChannelIdExists(8L), isFalse, { "channel id does not exist" })
-//    }
-//
-//    @Test
-//    fun `isChannelIdExists returned false if channel removed by id`() {
-//        val id = channelManager.addChannel("ron")
-//        channelManager.removeChannel(id)
-//        assertThat(channelManager.isChannelIdExists(id), isFalse, { "channel id does not exist" })
-//    }
-//
-//    @Test
-//    fun `isChannelIdExists returned false for invalid id`() {
-//        assertThat(channelManager.isChannelIdExists(MANAGERS_CONSTS.CHANNEL_INVALID_ID), isFalse,
-//                { "invalid channel id cannot be exists" })
-//    }
-//
-//    @Test
-//    fun `get id throws for invalid channel name`() {
-//        assertThrows<IllegalArgumentException> { channelManager.getChannelIdByName(MANAGERS_CONSTS.CHANNEL_INVALID_NAME) }
-//    }
-//
-//    @Test
-//    fun `get id throws for channel name that does not exist`() {
-//        assertThrows<IllegalArgumentException> { channelManager.getChannelIdByName("ron") }
-//    }
-//
-//    @Test
-//    fun `get id returned the given id that returned in add`() {
-//        val id1 = channelManager.addChannel("ron")
-//        val id2 = channelManager.addChannel("ben")
-//        val id3 = channelManager.addChannel("aviad")
-//        assertThat(channelManager.getChannelIdByName("ron"), equalTo(id1), { "ids are not identical" })
-//        assertThat(channelManager.getChannelIdByName("ben"), equalTo(id2), { "ids are not identical" })
-//        assertThat(channelManager.getChannelIdByName("aviad"), equalTo(id3), { "ids are not identical" })
-//    }
-//
-//    @Test
-//    fun `get name throws for invalid channel id`() {
-//        channelManager.addChannel("ron")
-//        assertThrows<IllegalArgumentException> { channelManager.getChannelNameById(MANAGERS_CONSTS.CHANNEL_INVALID_ID) }
-//    }
-//
-//    @Test
-//    fun `get name throws for channel id that does not exist`() {
-//        channelManager.addChannel("ron")
-//        assertThrows<IllegalArgumentException> { channelManager.getChannelNameById(2000L) }
-//    }
-//
-//    @Test
-//    fun `get name returned the right name`() {
-//        val id1 = channelManager.addChannel("ron")
-//        val id2 = channelManager.addChannel("ben")
-//        val id3 = channelManager.addChannel("aviad")
-//        assertThat(channelManager.getChannelNameById(id1), equalTo("ron"), { "names are not identical" })
-//        assertThat(channelManager.getChannelNameById(id2), equalTo("ben"), { "names are not identical" })
-//        assertThat(channelManager.getChannelNameById(id3), equalTo("aviad"), { "names are not identical" })
-//    }
-//
-//    @Test
-//    fun `getNumberOfActiveMembers returned 0 after init`() {
-//        val id1 = channelManager.addChannel("ron")
-//        val id2 = channelManager.addChannel("ben")
-//        val id3 = channelManager.addChannel("aviad")
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1), equalTo(0L))
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id2), equalTo(0L))
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id3), equalTo(0L))
-//    }
-//
-//    @Test
-//    fun `getNumberOfActiveMembers throws for CHANNEL_INVALID_ID`() {
-//        channelManager.addChannel("ron")
-//        assertThrows<IllegalArgumentException> { channelManager.getNumberOfActiveMembersInChannel(MANAGERS_CONSTS.CHANNEL_INVALID_ID) }
-//    }
-//
-//    @Test
-//    fun `getNumberOfActiveMembers throws for invalid channel id`() {
-//        val id = channelManager.addChannel("ron")
-//        assertThrows<IllegalArgumentException> { channelManager.getNumberOfActiveMembersInChannel(id + 1L) }
-//    }
-//
-//    @Test
-//    fun `getNumberOfActiveMembers throws for removed channel id`() {
-//        val id = channelManager.addChannel("ron")
-//        channelManager.removeChannel(id)
-//        assertThrows<IllegalArgumentException> { channelManager.getNumberOfActiveMembersInChannel(id) }
-//    }
-//
+package il.ac.technion.cs.softwaredesign.tests
+
+import com.authzee.kotlinguice4.getInstance
+import com.google.common.primitives.Longs
+import com.google.inject.Guice
+import com.natpryce.hamkrest.assertion.assertThat
+import com.natpryce.hamkrest.equalTo
+import il.ac.technion.cs.softwaredesign.storage.api.IChannelManager
+import il.ac.technion.cs.softwaredesign.storage.SecureStorageFactory
+import il.ac.technion.cs.softwaredesign.storage.statistics.IStatisticsStorage
+import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES
+import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
+import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS
+import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.ROOT_INIT_INDEX
+import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.ROOT_KEY
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
+import java.util.concurrent.CompletableFuture
+
+@TestInstance(TestInstance.Lifecycle.PER_METHOD)
+class ChannelManagerTest {
+    private val injector = Guice.createInjector(LibraryTestModule())
+
+    private val channelManager = injector.getInstance<IChannelManager>()
+
+    private fun initTrees() {
+        val factory = injector.getInstance<SecureStorageFactory>()
+        val s1 = factory.open(DB_NAMES.TREE_USERS_BY_CHANNELS_COUNT.toByteArray()).get()
+        val s2 = factory.open(DB_NAMES.TREE_CHANNELS_BY_ACTIVE_USERS_COUNT.toByteArray()).get()
+        val s3 = factory.open(DB_NAMES.TREE_CHANNELS_BY_USERS_COUNT.toByteArray()).get()
+        s1.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX)).get()
+        s2.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX)).get()
+        s3.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX)).get()
+    }
+
+    private fun initStatistics() {
+        val statisticsStorage = injector.getInstance<IStatisticsStorage>()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_USERS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_CHANNELS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.MAX_CHANNEL_INDEX, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+    }
+
+    @BeforeEach
+    private fun init() {
+        initStatistics()
+        initTrees()
+    }
+
+    @Test
+    fun `add new channel does not throws`() {
+        channelManager.addChannel("ron").get()
+    }
+
+    @Test
+    fun `cannot add invalid channel name`() {
+        assertThrows<IllegalArgumentException> { channelManager.addChannel(MANAGERS_CONSTS.CHANNEL_INVALID_NAME).joinException() }
+    }
+
+    @Test
+    fun `add new channel return valid id`() {
+        val id = channelManager.addChannel("ron").get()
+        assertThat(id, !equalTo(MANAGERS_CONSTS.CHANNEL_INVALID_ID), { "addChannel channel returned invalid id" })
+    }
+
+    @Test
+    fun `add new channel throws if channel name exists`() {
+        assertThrows<IllegalArgumentException> {
+            channelManager.addChannel("ron")
+                    .thenCompose { channelManager.addChannel("ron") }
+                    .joinException()
+        }
+    }
+
+    @Test
+    fun `remove channel by name and add it again not throws`() {
+        channelManager.addChannel("ron")
+                .thenCompose { channelManager.removeChannel(it) }
+                .thenCompose { channelManager.addChannel("ron") }
+                .get()
+    }
+
+    @Test
+    fun `isChannelNameExists returned true`() {
+        assertThat(
+                channelManager.addChannel("ron")
+                        .thenCompose { channelManager.isChannelNameExists("ron") }
+                        .get(),
+                isTrue, { "channel name does not exist" }
+        )
+    }
+
+    @Test
+    fun `isChannelNameExists returned false if no channel added`() {
+        assertThat(channelManager.isChannelNameExists("ron").get(), isFalse, { "channel name does not exist" })
+    }
+
+    @Test
+    fun `isChannelNameExists returned false if channel removed`() {
+        assertThat(
+                channelManager.addChannel("ron")
+                        .thenCompose { channelManager.removeChannel(it) }
+                        .thenCompose { channelManager.isChannelNameExists("ron") }
+                        .get(),
+                isFalse, { "channel name does not exist" }
+        )
+    }
+
+    @Test
+    fun `isChannelNameExists returned false for invalid name`() {
+        assertThat(channelManager.isChannelNameExists(MANAGERS_CONSTS.CHANNEL_INVALID_NAME).get(), isFalse,
+                { "invalid channel name cannot be exists" })
+    }
+
+    @Test
+    fun `isChannelIdExists returned true`() {
+        assertThat(
+                channelManager.addChannel("ron")
+                        .thenCompose { channelManager.isChannelIdExists(it) }
+                        .get(),
+                isTrue, { "channel id does not exist" }
+        )
+    }
+
+    @Test
+    fun `isChannelIdExists returned false if no channel added`() {
+        assertThat(channelManager.isChannelIdExists(8L).get(), isFalse, { "channel id does not exist" })
+    }
+
+    @Test
+    fun `isChannelIdExists returned false if channel removed by id`() {
+        assertThat(
+                channelManager.addChannel("ron")
+                        .thenCompose { channelManager.removeChannel(it); CompletableFuture.supplyAsync{it} }
+                        .thenCompose { channelManager.isChannelIdExists(it) }
+                        .get(),
+                isFalse, { "channel id does not exist" }
+        )
+    }
+
+    @Test
+    fun `isChannelIdExists returned false for invalid id`() {
+        assertThat(channelManager.isChannelIdExists(MANAGERS_CONSTS.CHANNEL_INVALID_ID).get(), isFalse,
+                { "invalid channel id cannot be exists" })
+    }
+
+    @Test
+    fun `get id throws for invalid channel name`() {
+        assertThrows<IllegalArgumentException> { channelManager.getChannelIdByName(MANAGERS_CONSTS.CHANNEL_INVALID_NAME).joinException() }
+    }
+
+    @Test
+    fun `get id throws for channel name that does not exist`() {
+        assertThrows<IllegalArgumentException> { channelManager.getChannelIdByName("ron").joinException() }
+    }
+
+    @Test
+    fun `get id returned the given id that returned in add`() {
+        var id1 = -1L
+        var id2 = -1L
+        var id3 = -1L
+
+        assertThat(
+            channelManager.addChannel("ron")
+                    .thenCompose { id1 = it; channelManager.addChannel("ben") }
+                    .thenCompose { id2 = it; channelManager.addChannel("aviad") }
+                    .thenCompose { id3 = it; channelManager.getChannelIdByName("ron") }
+                    .get(),
+                equalTo(id1), { "ids are not identical" }
+        )
+
+        assertThat(channelManager.getChannelIdByName("ben").get(), equalTo(id2), { "ids are not identical" })
+        assertThat(channelManager.getChannelIdByName("aviad").get(), equalTo(id3), { "ids are not identical" })
+    }
+
+    @Test
+    fun `get name throws for invalid channel id`() {
+        assertThrows<IllegalArgumentException> { channelManager.addChannel("ron").thenCompose{
+            channelManager.getChannelNameById(MANAGERS_CONSTS.CHANNEL_INVALID_ID)
+        }.joinException()
+        }
+    }
+
+    @Test
+    fun `get name throws for channel id that does not exist`() {
+        assertThrows<IllegalArgumentException> { channelManager.addChannel("ron").thenCompose{
+            channelManager.getChannelNameById(2000L)
+        }.joinException() }
+    }
+
+    @Test
+    fun `get name returned the right name`() {
+        var id1 = -1L
+        var id2 = -1L
+        var id3 = -1L
+
+        assertThat(
+                channelManager.addChannel("ron")
+                        .thenCompose { id1 = it; channelManager.addChannel("ben") }
+                        .thenCompose { id2 = it; channelManager.addChannel("aviad") }
+                        .thenCompose { id3 = it;  channelManager.getChannelNameById(id1)}
+                        .get(),
+                equalTo("ron"), { "names are not identical" }
+        )
+
+        assertThat(channelManager.getChannelNameById(id2).get(), equalTo("ben"), { "names are not identical" })
+        assertThat(channelManager.getChannelNameById(id3).get(), equalTo("aviad"), { "names are not identical" })
+    }
+
+    @Test
+    fun `getNumberOfActiveMembers returned 0 after init`() {
+        var id1 = -1L
+        var id2 = -1L
+        var id3 = -1L
+
+        assertThat(
+                channelManager.addChannel("ron")
+                        .thenCompose { id1 = it; channelManager.addChannel("ben") }
+                        .thenCompose { id2 = it; channelManager.addChannel("aviad") }
+                        .thenCompose { id3 = it;  channelManager.getNumberOfActiveMembersInChannel(id1)}
+                        .get(),
+                equalTo(0L)
+        )
+
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(0L))
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
+    }
+
+    @Test
+    fun `getNumberOfActiveMembers throws for CHANNEL_INVALID_ID`() {
+        assertThrows<IllegalArgumentException> { channelManager.addChannel("ron").thenCompose{
+            channelManager.getNumberOfActiveMembersInChannel(MANAGERS_CONSTS.CHANNEL_INVALID_ID)
+        }.joinException() }
+    }
+
+    @Test
+    fun `getNumberOfActiveMembers throws for invalid channel id`() {
+        assertThrows<IllegalArgumentException> {
+            channelManager.addChannel("ron").thenCompose {
+                channelManager.getNumberOfActiveMembersInChannel(it + 1L)
+            }.joinException() }
+    }
+
+    @Test
+    fun `getNumberOfActiveMembers throws for removed channel id`() {
+        assertThrows<IllegalArgumentException> {
+            channelManager.addChannel("ron")
+                    .thenCompose { channelManager.removeChannel(it); CompletableFuture.supplyAsync{it} }
+                    .thenCompose { channelManager.getNumberOfActiveMembersInChannel(it) }
+                    .joinException()
+        }
+    }
+
 //    @Test
 //    fun `getNumberOfMembers returned 0 after init`() {
 //        val id1 = channelManager.addChannel("ron")
@@ -616,9 +659,9 @@
 //            assertThat(userId, equalTo(ids[k]))
 //        }
 //    }
-//
-//    @Test
-//    fun `check active users top 10`() {
-//        // TODO("Implement this test")
-//    }
-//}
+
+    @Test
+    fun `check active users top 10`() {
+        // TODO("Implement this test")
+    }
+}

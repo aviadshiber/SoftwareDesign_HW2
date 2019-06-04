@@ -64,10 +64,10 @@ class ChannelManager
         }
     }
 
-    override fun removeChannel(channelId: Long) {
+    override fun removeChannel(channelId: Long): CompletableFuture<Unit> {
         removeChannelFromChannelTrees(channelId)
         invalidateChannelFuture(channelId)
-        statisticsManager.decreaseNumberOfChannelsBy()
+        return statisticsManager.decreaseNumberOfChannelsBy()
     }
 
     override fun isChannelNameExists(channelName: String): CompletableFuture<Boolean> {
