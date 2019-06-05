@@ -71,7 +71,7 @@ interface IChannelManager {
      * @param count Long
      * @throws IllegalArgumentException throws if channel id does not exist in the system
      */
-    fun increaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long = 1L)
+    fun increaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long = 1L): CompletableFuture<Unit>
 
     /**
      * decrease the number of active members in a specific channel by [count]
@@ -79,7 +79,7 @@ interface IChannelManager {
      * @param count Long
      * @throws IllegalArgumentException throws if channel id does not exist in the system
      */
-    fun decreaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long = 1L)
+    fun decreaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long = 1L): CompletableFuture<Unit>
 
 
     /** MEMBERS LIST **/

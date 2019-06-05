@@ -253,68 +253,110 @@ class ChannelManagerTest {
         }
     }
 
-//    @Test
-//    fun `getNumberOfMembers returned 0 after init`() {
-//        val id1 = channelManager.addChannel("ron")
-//        val id2 = channelManager.addChannel("ben")
-//        val id3 = channelManager.addChannel("aviad")
-//        assertThat(channelManager.getNumberOfMembersInChannel(id1), equalTo(0L))
-//        assertThat(channelManager.getNumberOfMembersInChannel(id2), equalTo(0L))
-//        assertThat(channelManager.getNumberOfMembersInChannel(id3), equalTo(0L))
-//    }
-//
-//    @Test
-//    fun `getNumberOfMembers throws for CHANNEL_INVALID_ID`() {
-//        channelManager.addChannel("ron")
-//        assertThrows<IllegalArgumentException> { channelManager.getNumberOfMembersInChannel(MANAGERS_CONSTS.CHANNEL_INVALID_ID) }
-//    }
-//
-//    @Test
-//    fun `getNumberOfMembers throws for invalid channel id`() {
-//        val id = channelManager.addChannel("ron")
-//        assertThrows<IllegalArgumentException> { channelManager.getNumberOfMembersInChannel(id + 1L) }
-//    }
-//
-//    @Test
-//    fun `getNumberOfMembers throws for removed channel id`() {
-//        val id = channelManager.addChannel("ron")
-//        channelManager.removeChannel(id)
-//        assertThrows<IllegalArgumentException> { channelManager.getNumberOfMembersInChannel(id) }
-//    }
-//
-//    @Test
-//    fun `inc_dec NumberOfActiveMembers throws for CHANNEL_INVALID_ID`() {
-//        channelManager.addChannel("ron")
-//        assertThrows<IllegalArgumentException> { channelManager.increaseNumberOfActiveMembersInChannelBy(MANAGERS_CONSTS.CHANNEL_INVALID_ID, 6L) }
-//        assertThrows<IllegalArgumentException> { channelManager.decreaseNumberOfActiveMembersInChannelBy(MANAGERS_CONSTS.CHANNEL_INVALID_ID, 6L) }
-//    }
-//
-//    @Test
-//    fun `inc_dec NumberOfActiveMembers throws for invalid channel id`() {
-//        val id = channelManager.addChannel("ron")
-//        assertThrows<IllegalArgumentException> { channelManager.increaseNumberOfActiveMembersInChannelBy(id + 1L, 8L) }
-//        assertThrows<IllegalArgumentException> { channelManager.decreaseNumberOfActiveMembersInChannelBy(MANAGERS_CONSTS.CHANNEL_INVALID_ID, 6L) }
-//    }
-//
-//    @Test
-//    fun `updateNumberOfActiveMembers update value`() {
-//        val id1 = channelManager.addChannel("ron")
-//        val id2 = channelManager.addChannel("ben")
-//        val id3 = channelManager.addChannel("aviad")
-//        channelManager.increaseNumberOfActiveMembersInChannelBy(id1, 8L)
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1), equalTo(8L))
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id2), equalTo(0L))
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id3), equalTo(0L))
-//        channelManager.increaseNumberOfActiveMembersInChannelBy(id1, 12L)
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1), equalTo(20L))
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id2), equalTo(0L))
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id3), equalTo(0L))
-//        channelManager.increaseNumberOfActiveMembersInChannelBy(id2, 18L)
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1), equalTo(20L))
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id2), equalTo(18L))
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id3), equalTo(0L))
-//    }
-//
+    @Test
+    fun `getNumberOfMembers returned 0 after init`() {
+        var id1 = -1L
+        var id2 = -1L
+        var id3 = -1L
+
+        assertThat(
+                channelManager.addChannel("ron")
+                        .thenCompose { id1 = it; channelManager.addChannel("ben") }
+                        .thenCompose { id2 = it; channelManager.addChannel("aviad") }
+                        .thenCompose { id3 = it;  channelManager.getNumberOfMembersInChannel(id1)}
+                        .get(),
+                equalTo(0L)
+        )
+        assertThat(channelManager.getNumberOfMembersInChannel(id2).get(), equalTo(0L))
+        assertThat(channelManager.getNumberOfMembersInChannel(id3).get(), equalTo(0L))
+    }
+
+    @Test
+    fun `getNumberOfMembers throws for CHANNEL_INVALID_ID`() {
+        assertThrows<IllegalArgumentException> {
+            channelManager.addChannel("ron")
+                    .thenCompose { channelManager.getNumberOfMembersInChannel(MANAGERS_CONSTS.CHANNEL_INVALID_ID) }
+                    .joinException()
+        }
+    }
+
+    @Test
+    fun `getNumberOfMembers throws for invalid channel id`() {
+        assertThrows<IllegalArgumentException> {
+            channelManager.addChannel("ron")
+                    .thenCompose { channelManager.getNumberOfMembersInChannel(it + 1L) }
+                    .joinException()
+        }
+    }
+
+    @Test
+    fun `getNumberOfMembers throws for removed channel id`() {
+        assertThrows<IllegalArgumentException> {
+            channelManager.addChannel("ron")
+                    .thenCompose { channelManager.removeChannel(it); CompletableFuture.supplyAsync{it} }
+                    .thenCompose { channelManager.getNumberOfMembersInChannel(it) }
+                    .joinException()
+        }
+    }
+
+    @Test
+    fun `inc_dec NumberOfActiveMembers throws for CHANNEL_INVALID_ID`() {
+        assertThrows<IllegalArgumentException> {
+            channelManager.addChannel("ron")
+                    .thenCompose { channelManager.increaseNumberOfActiveMembersInChannelBy(MANAGERS_CONSTS.CHANNEL_INVALID_ID, 6L) }
+                    .joinException()
+        }
+        assertThrows<IllegalArgumentException> { channelManager.decreaseNumberOfActiveMembersInChannelBy(MANAGERS_CONSTS.CHANNEL_INVALID_ID, 6L).joinException() }
+    }
+
+    @Test
+    fun `inc_dec NumberOfActiveMembers throws for invalid channel id`() {
+        assertThrows<IllegalArgumentException> {
+            channelManager.addChannel("ron")
+                    .thenCompose { channelManager.increaseNumberOfActiveMembersInChannelBy(it+1L, 8L) }
+                    .joinException()
+        }
+        assertThrows<IllegalArgumentException> { channelManager.decreaseNumberOfActiveMembersInChannelBy(MANAGERS_CONSTS.CHANNEL_INVALID_ID, 6L).joinException() }
+    }
+
+    @Test
+    fun `updateNumberOfActiveMembers update value`() {
+        var id1 = -1L
+        var id2 = -1L
+        var id3 = -1L
+
+        assertThat(
+                channelManager.addChannel("ron")
+                        .thenCompose { id1 = it; channelManager.addChannel("ben") }
+                        .thenCompose { id2 = it; channelManager.addChannel("aviad") }
+                        .thenCompose { id3 = it;  channelManager.increaseNumberOfActiveMembersInChannelBy(id1, 8L)}
+                        .thenCompose { channelManager.getNumberOfActiveMembersInChannel(id1)}
+                        .get(),
+                equalTo(8L)
+        )
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(0L))
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
+
+        assertThat(
+                channelManager.increaseNumberOfActiveMembersInChannelBy(id1, 12L)
+                        .thenCompose { channelManager.getNumberOfActiveMembersInChannel(id1)}
+                        .get(),
+                equalTo(20L)
+        )
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(0L))
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
+
+        assertThat(
+                channelManager.increaseNumberOfActiveMembersInChannelBy(id2, 18L)
+                        .thenCompose { channelManager.getNumberOfActiveMembersInChannel(id1)}
+                        .get(),
+                equalTo(20L)
+        )
+
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(18L))
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
+    }
+
 //    @Test
 //    fun `updateNumberOfMembers update value`() {
 //        val id1 = channelManager.addChannel("ron")

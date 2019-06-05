@@ -6,21 +6,41 @@ import java.util.concurrent.CompletableFuture
 
 
 class SecureStorageCache(private val secureStorage: SecureStorage) : SecureStorage {
-    private val cache: LRUCache<CompletableFuture<ByteArrayKey>, CompletableFuture<ByteArray?>> = LRUCache(capacity = 250_000)
+    private val cache: LRUCache<ByteArrayKey, ByteArray?> = LRUCache(capacity = 250_000)
+//
+//    override fun read(key: ByteArray): CompletableFuture<ByteArray?> {
+//        val keyWrapper = CompletableFuture.supplyAsync{ ByteArrayKey(key) }
+//        var cacheValue = cache[keyWrapper]
+//        if (cacheValue == null) {
+//            cacheValue=secureStorage.read(key)
+//            cache[keyWrapper] =  cacheValue
+//        }
+//        return cacheValue
+//    }
+//
+//    override fun write(key: ByteArray, value: ByteArray): CompletableFuture<Unit> {
+//        val keyWrapper = CompletableFuture.supplyAsync { ByteArrayKey(key) }
+//        cache[keyWrapper] = CompletableFuture.supplyAsync { value }
+//        return secureStorage.write(key, value)
+//    }
 
     override fun read(key: ByteArray): CompletableFuture<ByteArray?> {
-        val keyWrapper = CompletableFuture.supplyAsync{ ByteArrayKey(key) }
+        val keyWrapper = ByteArrayKey(key)
         var cacheValue = cache[keyWrapper]
-        if (cacheValue == null) {
-            cacheValue=secureStorage.read(key)
-            cache[keyWrapper] =  cacheValue
+        return if (cacheValue == null) {
+            secureStorage.read(key).thenApply {
+                cacheValue = it
+                cache[keyWrapper] =  cacheValue
+                cacheValue
+            }
+        } else {
+            CompletableFuture.supplyAsync{cacheValue}
         }
-        return cacheValue
     }
 
     override fun write(key: ByteArray, value: ByteArray): CompletableFuture<Unit> {
-        val keyWrapper = CompletableFuture.supplyAsync { ByteArrayKey(key) }
-        cache[keyWrapper] = CompletableFuture.supplyAsync { value }
+        val keyWrapper = ByteArrayKey(key)
+        cache[keyWrapper] = value
         return secureStorage.write(key, value)
     }
 
@@ -31,5 +51,4 @@ class SecureStorageCache(private val secureStorage: SecureStorage) : SecureStora
         override fun hashCode(): Int = bytes.contentHashCode()
         override fun toString(): String = bytes.contentToString()
     }
-
 }

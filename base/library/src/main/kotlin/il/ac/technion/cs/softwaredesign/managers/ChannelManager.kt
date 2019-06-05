@@ -104,12 +104,12 @@ class ChannelManager
                 .thenApply { it ?: throw IllegalArgumentException("channel id is valid but returned null") }
     }
 
-    override fun increaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long) {
-        changeNumberOfActiveMembersInChannelBy(channelId, count)
+    override fun increaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long): CompletableFuture<Unit> {
+        return changeNumberOfActiveMembersInChannelBy(channelId, count)
     }
 
-    override fun decreaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long) {
-        changeNumberOfActiveMembersInChannelBy(channelId, -count)
+    override fun decreaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long): CompletableFuture<Unit> {
+        return changeNumberOfActiveMembersInChannelBy(channelId, -count)
     }
 
 
