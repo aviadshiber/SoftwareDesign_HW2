@@ -36,11 +36,11 @@ class ChannelManager
 
     override fun addChannel(channelName: String): CompletableFuture<Long> {
         return getNextChannelIdFuture(channelName).thenCompose { channelId-> propertiesSetterFuture(channelId,channelName) }
-                .thenCompose {addNewChannelToChannelTrees(channelId = it)  }
-                .thenCompose {id->increaseNumberOfChannelsFuture(id) }
+                .thenCompose {
+                    addNewChannelToChannelTrees(channelId = it)
+                    increaseNumberOfChannelsFuture(it)
+                }
     }
-
-
 
     private fun propertiesSetterFuture(channelId: Long, channelName: String): CompletableFuture<Long> {
              // id db
@@ -131,7 +131,7 @@ class ChannelManager
                 .thenApply { validateMemberNotInList(it, memberId); it.toMutableList() }
                 .thenApply { it.add(memberId); it }
                 .thenCompose { list ->updateChannelMemberList(channelId,list)}
-                .thenCompose { size->
+                .thenApply { size->
                     updateKeyInTree(TREE_CHANNELS_BY_USERS_COUNT, channelId, size - 1L, size)
                 }
     }
@@ -142,7 +142,7 @@ class ChannelManager
                 .thenApply { validateMemberInList(it, memberId); it.toMutableList() }
                 .thenApply { it.remove(memberId); it }
                 .thenCompose { list ->updateChannelMemberList(channelId,list)}
-                .thenCompose { size->
+                .thenApply { size->
                     updateKeyInTree(TREE_CHANNELS_BY_USERS_COUNT, channelId, size + 1L, size)
                 }
     }
@@ -223,52 +223,49 @@ class ChannelManager
     }
 
     private fun invalidateChannelFuture(channelId: Long, channelName: String): CompletableFuture<Unit> {
-
         val invalidatedIdFuture=channelStorage.setChannelIdToChannelName(channelName, CHANNEL_INVALID_ID)
         val invalidateNameFuture=channelStorage.setPropertyStringToChannelId(channelId, CHANNEL_NAME_PROPERTY, CHANNEL_INVALID_NAME)
         return Future.allAsList(listOf(invalidateNameFuture,invalidatedIdFuture)).thenApply { Unit }
     }
 
-    private fun addNewChannelToChannelTrees(channelId: Long) : CompletableFuture<Long> {
+    private fun addNewChannelToChannelTrees(channelId: Long) {
         val key = CountIdKey(count = 0, id = channelId)
-        val updateChannelsByUsersCountTree = Future{channelsByUsersCountTree.put(key)} //TODO: remove future init after tree refactor
-        val updateChannelsByActiveUsersCountTree= Future { channelsByActiveUsersCountTree.put(key) }//TODO: remove future init after tree refactor
-        return Future.allAsList(listOf(updateChannelsByUsersCountTree,updateChannelsByActiveUsersCountTree)).thenApply { channelId }
+        channelsByUsersCountTree.put(key) //TODO: remove future init after tree refactor
+        channelsByActiveUsersCountTree.put(key) //TODO: remove future init after tree refactor
     }
 
     private fun removeChannelFromChannelTrees(channelId: Long): CompletableFuture<Unit> {
         val membersCountFuture = getNumberOfMembersInChannel(channelId)
-                .thenApply{ CountIdKey(id = channelId, count = it) }
-                .thenCompose {Future{channelsByUsersCountTree.delete(it)} } //TODO: remove future init after tree refactor
-
-
+                .thenApply{
+                    val key=CountIdKey(id = channelId, count = it)
+                    channelsByUsersCountTree.delete(key) //TODO: remove future init after tree refactor
+                }
         val activeMembersCountFuture = getNumberOfActiveMembersInChannel(channelId)
-                .thenApply { CountIdKey(id = channelId, count = it) }
-                .thenCompose {Future{channelsByActiveUsersCountTree.delete(it)}  }//TODO: remove future init after tree refactor
+                .thenApply {
+                    val key=CountIdKey(id = channelId, count = it)
+                    channelsByActiveUsersCountTree.delete(key) //TODO: remove future init after tree refactor
+                }
         return Future.allAsList(listOf(membersCountFuture,activeMembersCountFuture)).thenApply { Unit }
-
     }
 
     private fun changeNumberOfActiveMembersInChannelBy(channelId: Long, count: Long): CompletableFuture<Unit> {
-        // value:
         return validateChannelIdFuture(channelId).thenCompose { getNumberOfActiveMembersInChannel(channelId) }
                 .thenCompose {currentValue->
                     val newValue=count+currentValue
                     val nextValue= Pair(currentValue, newValue)
                     channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_ACTIVE_MEMBERS, newValue).thenApply { nextValue }
-                }.thenCompose {
+                }.thenApply {
                     (currentValue, newValue)->
                     updateKeyInTree(TREE_CHANNELS_BY_ACTIVE_USERS_COUNT, channelId, currentValue, newValue)
                 }
     }
 
-    private fun updateKeyInTree(treeName: String, channelId: Long, currentValue: Long, newValue: Long) :CompletableFuture<Unit> {
+    private fun updateKeyInTree(treeName: String, channelId: Long, currentValue: Long, newValue: Long) {
         val tree = getTreeByName(treeName)
         val oldKey = CountIdKey(count = currentValue, id = channelId)
-        val deleteFuture=Future{tree.delete(oldKey)}  //TODO: remove Future init after tree refactor
+        tree.delete(oldKey)  //TODO: remove Future init after tree refactor
         val newKey = CountIdKey(count = newValue, id = channelId)
-        val putFuture=Future{tree.put(newKey)} //TODO: remove Future init after tree refactor
-        return deleteFuture.thenCompose { putFuture }
+        tree.put(newKey) //TODO: remove Future init after tree refactor
     }
 
     private fun getTop10FromTree(treeName: String): CompletableFuture<List<String>> {
@@ -285,16 +282,15 @@ class ChannelManager
 
     private fun buildTop10FromHigherToLowerListFromTree(higherChannelIndex: Long, lowestChannelIndex: Long, tree: SecureAVLTree<CountIdKey>): CompletableFuture<MutableList<String>> {
             return if(higherChannelIndex<lowestChannelIndex){
-                Future{ mutableListOf<String>()}
+                ImmediateFuture{ mutableListOf<String>()}
             }else{
                 //TODO: fix after tree refactoring (remove Future init)
-                val channelIdFuture = Future { tree.select(higherChannelIndex).getId() }
+                val channelIdFuture = ImmediateFuture { tree.select(lowestChannelIndex).getId() }
                 val channelNameFuture=channelIdFuture.thenCompose { getChannelNameById(it) }
-                buildTop10FromHigherToLowerListFromTree(higherChannelIndex-1,lowestChannelIndex,tree)
+                buildTop10FromHigherToLowerListFromTree(higherChannelIndex,lowestChannelIndex+1,tree)
                         .thenCompose { list-> channelNameFuture.thenApply { name-> list.add(name); list } }
             }
     }
-
 
     private fun validateMemberInList(it: List<Long>, memberId: Long): List<Long> {
         if (!it.contains(memberId))
