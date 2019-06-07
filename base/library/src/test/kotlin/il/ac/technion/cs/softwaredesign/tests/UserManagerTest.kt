@@ -13,6 +13,7 @@ import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES
 import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS
 import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST
 import io.github.vjames19.futures.jdk8.Future
+import io.github.vjames19.futures.jdk8.ImmediateFuture
 import org.junit.jupiter.api.*
 import java.util.concurrent.CompletableFuture
 
@@ -50,7 +51,7 @@ class UserManagerTest {
     @Test
     fun `gets the user id from the system`() {
         val aviadID = userManager.addUser("aviad", "aviad_password")
-                .thenCompose { userManager.addUser("ron", "ron_password"); CompletableFuture.supplyAsync{it} }
+                .thenCompose { userManager.addUser("ron", "ron_password"); ImmediateFuture{it} }
                 .get()
 
         assertThat(userManager.getUserId("aviad").get() , equalTo(aviadID))
@@ -68,7 +69,7 @@ class UserManagerTest {
     @Test
     fun `add user with as logged out`() {
         val aviadID = userManager.addUser("aviad", "aviad_password", IUserManager.LoginStatus.OUT)
-                .thenCompose { userManager.addUser("ron", "ron_password"); CompletableFuture.supplyAsync{it} }
+                .thenCompose { userManager.addUser("ron", "ron_password"); ImmediateFuture{it} }
                 .get()
 
         assertThat(userManager.getUserStatus(aviadID).get(), equalTo(IUserManager.LoginStatus.OUT))
@@ -77,7 +78,7 @@ class UserManagerTest {
     @Test
     fun `add user with with admin privilege`() {
         val aviadID = userManager.addUser("aviad", "aviad_password", privilege = IUserManager.PrivilegeLevel.ADMIN)
-                .thenCompose { userManager.addUser("ron", "ron_password"); CompletableFuture.supplyAsync{it} }
+                .thenCompose { userManager.addUser("ron", "ron_password"); ImmediateFuture{it} }
                 .get()
 
         assertThat(userManager.getUserPrivilege(aviadID).get(), equalTo(IUserManager.PrivilegeLevel.ADMIN))
@@ -183,7 +184,7 @@ class UserManagerTest {
     private fun addUserTo20ChannelsAndGetFuture(): CompletableFuture<Long> {
         var aviadID1 = -1L
         return userManager.addUser("aviad", "aviad_password")
-                .thenCompose { id -> aviadID1 = id; CompletableFuture.supplyAsync { id } }
+                .thenCompose { id -> aviadID1 = id; ImmediateFuture { id } }
                 .thenCompose { userManager.addChannelToUser(aviadID1, 1L) }
                 .thenCompose { userManager.addChannelToUser(aviadID1, 2L) }
                 .thenCompose { userManager.addChannelToUser(aviadID1, 3L) }

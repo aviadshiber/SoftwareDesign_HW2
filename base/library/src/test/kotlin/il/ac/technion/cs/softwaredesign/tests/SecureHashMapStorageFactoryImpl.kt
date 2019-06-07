@@ -2,6 +2,7 @@ package il.ac.technion.cs.softwaredesign.tests
 
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.SecureStorageFactory
+import io.github.vjames19.futures.jdk8.ImmediateFuture
 import java.util.concurrent.CompletableFuture
 
 class SecureHashMapStorageFactoryImpl : SecureStorageFactory {
@@ -20,6 +21,6 @@ class SecureHashMapStorageFactoryImpl : SecureStorageFactory {
             storages[ByteArrayKey(name)] = storage
             Thread.sleep(100)
         }
-        return CompletableFuture.supplyAsync{storage}
+        return ImmediateFuture{storage!!}
     }
 }

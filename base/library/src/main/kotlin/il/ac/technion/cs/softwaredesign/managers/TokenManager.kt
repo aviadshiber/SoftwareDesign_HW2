@@ -3,6 +3,7 @@ package il.ac.technion.cs.softwaredesign.managers
 import il.ac.technion.cs.softwaredesign.storage.api.ITokenManager
 import il.ac.technion.cs.softwaredesign.storage.users.IUserStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.INVALID_USER_ID
+import io.github.vjames19.futures.jdk8.ImmediateFuture
 import java.security.SecureRandom
 import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
@@ -75,7 +76,7 @@ class TokenManager @Inject constructor(private val userStorage: IUserStorage) : 
             if (!it) {
                 generateValidUserToken()
             } else {
-                CompletableFuture.supplyAsync{token}
+                ImmediateFuture{token}
             }
         }
     }

@@ -13,6 +13,7 @@ import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS
 import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.ROOT_INIT_INDEX
 import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.ROOT_KEY
+import io.github.vjames19.futures.jdk8.ImmediateFuture
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -133,7 +134,7 @@ class ChannelManagerTest {
     fun `isChannelIdExists returned false if channel removed by id`() {
         assertThat(
                 channelManager.addChannel("ron")
-                        .thenCompose { channelManager.removeChannel(it); CompletableFuture.supplyAsync{it} }
+                        .thenCompose { channelManager.removeChannel(it); ImmediateFuture{it} }
                         .thenCompose { channelManager.isChannelIdExists(it) }
                         .get(),
                 isFalse, { "channel id does not exist" }
@@ -247,7 +248,7 @@ class ChannelManagerTest {
     fun `getNumberOfActiveMembers throws for removed channel id`() {
         assertThrows<IllegalArgumentException> {
             channelManager.addChannel("ron")
-                    .thenCompose { channelManager.removeChannel(it); CompletableFuture.supplyAsync{it} }
+                    .thenCompose { channelManager.removeChannel(it); ImmediateFuture{it} }
                     .thenCompose { channelManager.getNumberOfActiveMembersInChannel(it) }
                     .joinException()
         }
@@ -293,7 +294,7 @@ class ChannelManagerTest {
     fun `getNumberOfMembers throws for removed channel id`() {
         assertThrows<IllegalArgumentException> {
             channelManager.addChannel("ron")
-                    .thenCompose { channelManager.removeChannel(it); CompletableFuture.supplyAsync{it} }
+                    .thenCompose { channelManager.removeChannel(it); ImmediateFuture{it} }
                     .thenCompose { channelManager.getNumberOfMembersInChannel(it) }
                     .joinException()
         }

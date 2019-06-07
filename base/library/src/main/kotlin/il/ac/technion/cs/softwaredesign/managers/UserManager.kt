@@ -15,6 +15,7 @@ import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.INVALID_US
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.LIST_PROPERTY
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.PASSWORD_PROPERTY
 import io.github.vjames19.futures.jdk8.Future
+import io.github.vjames19.futures.jdk8.ImmediateFuture
 import io.github.vjames19.futures.jdk8.map
 import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
@@ -36,8 +37,12 @@ class UserManager
     override fun addUser(username: String, password: String, status: LoginStatus, privilege: PrivilegeLevel): CompletableFuture<Long> {
         //probably can be optimized even more with combine instead of compose but this is okay for now
         return getUserId(username)
-                .thenCompose { userId->generateNextUserId(userId) }
-                .thenCompose { userId->userStorage.setUserIdToUsername(username, userId); CompletableFuture.supplyAsync{userId} }
+                .thenCompose { userId->
+                    if (userId == INVALID_USER_ID) throw IllegalArgumentException("user id is not valid")
+                    if (userId != null) throw IllegalArgumentException("user already exist")
+                    userIdGenerator.next()
+                }
+                .thenCompose { userId->userStorage.setUserIdToUsername(username, userId); ImmediateFuture{userId} }
                 .thenCompose { userId->propertiesSettersFuture(userId,username,password,status,privilege) }
                 .thenCompose { userId->initChannelListFuture(userId) }
                 .thenCompose { userId->addNewUserToUserTreeFuture(userId = userId) }
@@ -79,7 +84,7 @@ class UserManager
 
     override fun updateUserStatus(userId: Long, status: LoginStatus) :CompletableFuture<Unit> {
         return getUserStatus(userId).thenCompose{
-            if(it == status) CompletableFuture.supplyAsync{Unit}
+            if(it == status) ImmediateFuture{Unit}
             else {
                 userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.STATUS_PROPERTY, status.ordinal.toString())
                     .thenCompose {
@@ -223,21 +228,6 @@ class UserManager
         return if (status == LoginStatus.IN) statisticsManager.increaseLoggedInUsersBy().thenApply { userId }
         else Future{ userId}
     }
-
-
-    private fun generateNextUserId(currentUserId: Long?): CompletableFuture<Long> {
-        if (currentUserId == INVALID_USER_ID) throw IllegalArgumentException("user id is not valid")
-        if (currentUserId != null) throw IllegalArgumentException("user already exist")
-        return userIdGenerator.next()
-    }
-
-//    private fun propertiesSettersFuture(userId: Long, username: String, password: String, status:LoginStatus, privilege: PrivilegeLevel): CompletableFuture<Long> {
-//        return userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.USERNAME_PROPERTY, username)
-//                .thenCompose { userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.PASSWORD_PROPERTY, password) }
-//                .thenCompose { userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.STATUS_PROPERTY, status.ordinal.toString()) }
-//                .thenCompose { userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.PRIVILEGE_PROPERTY, privilege.ordinal.toString()) }
-//                .thenApply { userId }
-//    }
 
     private fun propertiesSettersFuture(userId: Long, username: String, password: String, status:LoginStatus, privilege: PrivilegeLevel): CompletableFuture<Long> {
         val usernamePropertySetterFuture=userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.USERNAME_PROPERTY, username)

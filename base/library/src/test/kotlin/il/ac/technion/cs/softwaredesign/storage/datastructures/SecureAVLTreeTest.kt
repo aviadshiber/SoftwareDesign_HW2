@@ -10,6 +10,7 @@ import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.ROOT_KEY
 import il.ac.technion.cs.softwaredesign.tests.assertWithTimeout
 import il.ac.technion.cs.softwaredesign.tests.isFalse
 import il.ac.technion.cs.softwaredesign.tests.isTrue
+import io.github.vjames19.futures.jdk8.ImmediateFuture
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -60,13 +61,13 @@ class SecureAVLTreeTest {
             val value  =valueSlot.captured
             val key= ByteArrayKey(keySlot.captured)
             storageMock[key]=value
-            CompletableFuture.supplyAsync{Unit}
+            ImmediateFuture{Unit}
         }
         every {
             storageLayer.read(capture(keySlot))
         } answers {
             val key = ByteArrayKey(keySlot.captured)
-            CompletableFuture.supplyAsync{storageMock[key]}
+            ImmediateFuture{storageMock[key]}
         }
 
     }
