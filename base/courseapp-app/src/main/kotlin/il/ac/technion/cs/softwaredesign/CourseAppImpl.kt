@@ -138,11 +138,12 @@ class CourseAppImpl
                 .thenCompose { (userId, channelId) ->
                     removeUserFromChannelFuture(userId, channelId)
                 }.thenCompose { (userId, channelId) ->
+                    removeChannelFromUserFuture(userId, channelId)
+                }.thenCompose { (userId, channelId) ->
                     decreaseNumberOfActiveMembersInChannelForLoggedInUserFuture(userId, channelId)
                             .thenCompose { removeChannelWhenEmptyFuture(channelId) }
                 }
     }
-
 
     override fun channelMakeOperator(token: String, channel: String, username: String): CompletableFuture<Unit> {
         return preValidations(token, channel)
@@ -190,7 +191,6 @@ class CourseAppImpl
                 }
     }
 
-
     private fun validateMembershipInChannelFuture(initiatorUserId: Long, channelId: Long) =
             isUserMember(initiatorUserId, channelId).thenApply { if (!it) throw UserNotAuthorizedException() }.thenApply { Pair(initiatorUserId, channelId) }
 
@@ -215,7 +215,6 @@ class CourseAppImpl
                     else
                         isUserMember(userId, channelId)
                 }
-
     }
 
     override fun numberOfActiveUsersInChannel(token: String, channel: String): CompletableFuture<Long> {
@@ -327,7 +326,9 @@ class CourseAppImpl
     }
 
     private fun addMemberToChannelFuture(channelId: Long, userId: Long): CompletableFuture<Pair<Long, Long>>? {
-        return channelManager.addMemberToChannel(channelId, userId).thenApply { Pair(channelId, userId) }
+        return channelManager.addMemberToChannel(channelId, userId)
+                .exceptionally { /* if user try to join again, its ok */ }
+                .thenApply { Pair(channelId, userId) }
     }
 
     private fun addChannelToUserFuture(userId: Long, channelId: Long): CompletableFuture<Pair<Long, Long>>? {
