@@ -80,7 +80,7 @@ class CourseAppImpl
     }
 
     override fun isUserLoggedIn(token: String, username: String): CompletableFuture<Boolean?> {
-        validateTokenFuture(token)
+        return validateTokenFuture(token)
                 .thenCompose { userManager.getUserId(username) }
                 .thenCompose {
                     if (it != null)
@@ -203,30 +203,23 @@ class CourseAppImpl
     }
 
     override fun isUserInChannel(token: String, channel: String, username: String): CompletableFuture<Boolean?> {
-         return preValidations(token, channel)
-                .thenCompose { (initiatorUserId, channelId) -> userManager.getUserPrivilege(initiatorUserId).thenApply { Triple(initiatorUserId, channelId,it) } }
-                .thenCompose {(initiatorUserId, channelId,userPrivilege)->
-                    validateUserIsAdminOrMemberOfChannel(userPrivilege, initiatorUserId, channelId) }
-                .thenCompose { channelId-> userManager.getUserId(username).thenApply { Pair(it,channelId) } }
-                .thenCompose<Boolean?> { (userId,channelId) ->
-                    if(userId==null)
-                       ImmediateFuture { null }
+        return preValidations(token, channel)
+                .thenCompose { (initiatorUserId, channelId) -> userManager.getUserPrivilege(initiatorUserId).thenApply { Triple(initiatorUserId, channelId, it) } }
+                .thenCompose { (initiatorUserId, channelId, userPrivilege) ->
+                    validateUserIsAdminOrMemberOfChannel(userPrivilege, initiatorUserId, channelId)
+                }
+                .thenCompose { channelId -> userManager.getUserId(username).thenApply { Pair(it, channelId) } }
+                .thenCompose<Boolean?> { (userId, channelId) ->
+                    if (userId == null)
+                        ImmediateFuture { null }
                     else
-                        isUserMember(userId,channelId)
+                        isUserMember(userId, channelId)
                 }
 
     }
 
-    private fun validateUserIsAdminOrMemberOfChannel(privilege: IUserManager.PrivilegeLevel, initiatorUserId: Long, channelId: Long): CompletableFuture<Long> {
-        return if (privilege != IUserManager.PrivilegeLevel.ADMIN)
-            isUserMember(initiatorUserId, channelId)
-                    .thenApply { isUserMember -> if (!isUserMember) throw UserNotAuthorizedException() }
-                    .thenApply { channelId }
-        else
-            ImmediateFuture { channelId }
-    }
 
-    override fun numberOfActiveUsersInChannel(token: String, channel: String): Long {
+    override fun numberOfActiveUsersInChannel(token: String, channel: String): CompletableFuture<Long> {
         val (initiatorUserId, channelId) = preValidations(token, channel)
         val isUserAdmin = userManager.getUserPrivilege(initiatorUserId) == IUserManager.PrivilegeLevel.ADMIN
         if (!isUserAdmin && !isUserMember(initiatorUserId, channelId)) throw UserNotAuthorizedException()
@@ -244,6 +237,16 @@ class CourseAppImpl
     class ImpossibleSituation(message: String? = null, cause: Throwable? = null) : Exception(message, cause)
 
     /** PRIVATES **/
+
+
+    private fun validateUserIsAdminOrMemberOfChannel(privilege: IUserManager.PrivilegeLevel, initiatorUserId: Long, channelId: Long): CompletableFuture<Long> {
+        return if (privilege != IUserManager.PrivilegeLevel.ADMIN)
+            isUserMember(initiatorUserId, channelId)
+                    .thenApply { isUserMember -> if (!isUserMember) throw UserNotAuthorizedException() }
+                    .thenApply { channelId }
+        else
+            ImmediateFuture { channelId }
+    }
 
     private fun removeChannelFromUserFuture(userId: Long, channelId: Long) =
             userManager.removeChannelFromUser(userId, channelId).thenApply { Pair(channelId, userId) }
