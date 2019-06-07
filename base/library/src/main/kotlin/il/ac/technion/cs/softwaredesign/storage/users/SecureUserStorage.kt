@@ -69,8 +69,8 @@ class SecureUserStorage @Inject constructor(
 
     private fun delimitedByteArrayToList(byteArray: ByteArray): List<Long> {
         val stringValue = String(byteArray)
-        if (stringValue == "") return emptyList()
-        return stringValue.split(DELIMITER).map { it.toLong() }.toMutableList()
+        return if (stringValue == "") emptyList<Long>().toMutableList()
+        else stringValue.split(DELIMITER).map { it.toLong() }.toMutableList()
     }
 
     override fun setPropertyListToUserId(userIdKey: Long, property: String, listValue: List<Long?>):

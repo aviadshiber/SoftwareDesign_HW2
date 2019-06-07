@@ -57,8 +57,8 @@ class SecureChannelStorage
 
     private fun delimitedByteArrayToList(byteArray: ByteArray): MutableList<Long> {
         val stringValue = String(byteArray)
-        if (stringValue == "") emptyList<Long>()
-        return stringValue.split(DELIMITER).map { it.toLong() }.toMutableList()
+        return if (stringValue == "") emptyList<Long>().toMutableList()
+        else stringValue.split(DELIMITER).map { it.toLong() }.toMutableList()
     }
 
 

@@ -125,9 +125,10 @@ class ChannelManager
             channelStorage.getPropertyListByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_MEMBERS_LIST)}
                 .thenApply { it ?: throw IllegalArgumentException("channel id does not exist") }
     }
-
     override fun addMemberToChannel(channelId: Long, memberId: Long) :CompletableFuture<Unit> {
-        return getChannelMemberMutableListFuture(channelId, memberId)
+        return validateChannelIdFuture(channelId)
+                .thenCompose { getChannelMembersList(channelId) }
+                .thenApply { validateMemberNotInList(it, memberId); it.toMutableList() }
                 .thenApply { it.add(memberId); it }
                 .thenCompose { list ->updateChannelMemberList(channelId,list)}
                 .thenCompose { size->
@@ -135,15 +136,10 @@ class ChannelManager
                 }
     }
 
-    private fun getChannelMemberMutableListFuture(channelId: Long, memberId: Long): CompletableFuture<ArrayList<Long>> {
-        return validateChannelIdFuture(channelId).thenCompose { getChannelMembersList(channelId) }
-                .thenApply { validateMemberInList(it, memberId) }
-                .map { list -> ArrayList<Long>(list) }
-    }
-
-
     override fun removeMemberFromChannel(channelId: Long, memberId: Long) :CompletableFuture<Unit> {
-        return getChannelMemberMutableListFuture(channelId, memberId)
+        return validateChannelIdFuture(channelId)
+                .thenCompose { getChannelMembersList(channelId) }
+                .thenApply { validateMemberInList(it, memberId); it.toMutableList() }
                 .thenApply { it.remove(memberId); it }
                 .thenCompose { list ->updateChannelMemberList(channelId,list)}
                 .thenCompose { size->
@@ -164,9 +160,6 @@ class ChannelManager
         return validateChannelIdFuture(channelId).thenCompose {  getChannelOperatorsList(channelId)}
                 .thenCompose { list-> addOperatorToChannelListFuture(list, operatorId, channelId) }
     }
-
-
-
 
     override fun removeOperatorFromChannel(channelId: Long, operatorId: Long):CompletableFuture<Unit> {
         return validateChannelIdFuture(channelId).thenCompose {getChannelOperatorsList(channelId)}
@@ -217,7 +210,6 @@ class ChannelManager
             val mutableList = ArrayList<Long>(list)
             mutableList.add(operatorId)
             channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_OPERATORS_LIST, mutableList)
-
         } else {
             ImmediateFuture { Unit } //operator id already exists in channel
         }
@@ -305,12 +297,17 @@ class ChannelManager
 
 
     private fun validateMemberInList(it: List<Long>, memberId: Long): List<Long> {
+        if (!it.contains(memberId))
+            throw IllegalAccessException("member id does not exists in channel"); return it
+    }
+
+    private fun validateMemberNotInList(it: List<Long>, memberId: Long): List<Long> {
         if (it.contains(memberId))
             throw IllegalAccessException("member id already exists in channel"); return it
     }
 
     private fun removeOperatorFromListFuture(list: List<Long>, operatorId: Long, channelId: Long ): CompletableFuture<Unit> {
-        return if (!list.contains(operatorId)) {
+        return if (list.contains(operatorId)) {
             val mutableList = ArrayList<Long>(list)
             mutableList.remove(operatorId)
             channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_OPERATORS_LIST, mutableList)
