@@ -64,10 +64,10 @@ class ChannelManager
         }
     }
 
-    override fun removeChannel(channelId: Long) {
+    override fun removeChannel(channelId: Long): CompletableFuture<Unit> {
         removeChannelFromChannelTrees(channelId)
         invalidateChannelFuture(channelId)
-        statisticsManager.decreaseNumberOfChannelsBy()
+        return statisticsManager.decreaseNumberOfChannelsBy()
     }
 
     override fun isChannelNameExists(channelName: String): CompletableFuture<Boolean> {
@@ -104,12 +104,12 @@ class ChannelManager
                 .thenApply { it ?: throw IllegalArgumentException("channel id is valid but returned null") }
     }
 
-    override fun increaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long) {
-        changeNumberOfActiveMembersInChannelBy(channelId, count)
+    override fun increaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long): CompletableFuture<Unit> {
+        return changeNumberOfActiveMembersInChannelBy(channelId, count)
     }
 
-    override fun decreaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long) {
-        changeNumberOfActiveMembersInChannelBy(channelId, -count)
+    override fun decreaseNumberOfActiveMembersInChannelBy(channelId: Long, count: Long): CompletableFuture<Unit> {
+        return changeNumberOfActiveMembersInChannelBy(channelId, -count)
     }
 
 

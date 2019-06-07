@@ -15,6 +15,7 @@ import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.INVALID_US
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.LIST_PROPERTY
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.PASSWORD_PROPERTY
 import io.github.vjames19.futures.jdk8.Future
+import io.github.vjames19.futures.jdk8.ImmediateFuture
 import io.github.vjames19.futures.jdk8.map
 import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
@@ -36,15 +37,17 @@ class UserManager
     override fun addUser(username: String, password: String, status: LoginStatus, privilege: PrivilegeLevel): CompletableFuture<Long> {
         //probably can be optimized even more with combine instead of compose but this is okay for now
         return getUserId(username)
-               .thenCompose { userId->generateNextUserId(userId) }
-               .thenCompose { userId->propertiesSettersFuture(userId,username,password,status,privilege) }
-               .thenCompose { userId->initChannelListFuture(userId) }
-               .thenCompose { userId->addNewUserToUserTreeFuture(userId = userId) }
-               .thenCompose { userId->increaseUserLoginFuture(userId,status) }
+                .thenCompose { userId->
+                    if (userId == INVALID_USER_ID) throw IllegalArgumentException("user id is not valid")
+                    if (userId != null) throw IllegalArgumentException("user already exist")
+                    userIdGenerator.next()
+                }
+                .thenCompose { userId->userStorage.setUserIdToUsername(username, userId); ImmediateFuture{userId} }
+                .thenCompose { userId->propertiesSettersFuture(userId,username,password,status,privilege) }
+                .thenCompose { userId->initChannelListFuture(userId) }
+                .thenCompose { userId->addNewUserToUserTreeFuture(userId = userId) }
+                .thenCompose { userId->increaseUserLoginFuture(userId,status) }
     }
-
-
-
 
     /** GETTERS & SETTERS **/
     override fun getUserId(username: String): CompletableFuture<Long?> {
@@ -52,10 +55,8 @@ class UserManager
     }
 
     override fun getUsernameById(userId: Long): CompletableFuture<String> {
-
         return userStorage.getPropertyStringByUserId(userId, MANAGERS_CONSTS.USERNAME_PROPERTY)
                 .thenApply { it ?: throw IllegalArgumentException("user id does not exist") }
-
     }
 
     override fun getUserPrivilege(userId: Long): CompletableFuture<PrivilegeLevel> {
@@ -82,21 +83,19 @@ class UserManager
     }
 
     override fun updateUserStatus(userId: Long, status: LoginStatus) :CompletableFuture<Unit> {
-
-            return getUserStatus(userId).thenApply{ if(it == status) Unit }.thenCompose{
+        return getUserStatus(userId).thenCompose{
+            if(it == status) ImmediateFuture{Unit}
+            else {
                 userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.STATUS_PROPERTY, status.ordinal.toString())
-                        .thenCompose {
-                            if (status == LoginStatus.IN) {
-                                statisticsManager.increaseLoggedInUsersBy()
-                            } else {
-                                statisticsManager.decreaseLoggedInUsersBy()
-                            }
+                    .thenCompose {
+                        if (status == LoginStatus.IN) {
+                            statisticsManager.increaseLoggedInUsersBy()
+                        } else {
+                            statisticsManager.decreaseLoggedInUsersBy()
                         }
-
-
-
-            }.exceptionally {/* user id does not exist, do nothing */  }
-
+                    }
+            }
+        }.exceptionally {/* user id does not exist, do nothing */  }
     }
 
 
@@ -170,14 +169,12 @@ class UserManager
 
     /** USER COMPLEX STATISTICS **/
     override fun getTop10UsersByChannelsCount(): CompletableFuture<List<String>> {
-
         return  getTotalUsers()
                 .thenCompose { buildTop10UsersByChannelCountList(it) }
 
     }
 
     private fun buildTop10UsersByChannelCountList(nrOutputUsers: Long ) : CompletableFuture<List<String>> {
-
         val higherUserIndex=nrOutputUsers-1
         val lowestUserIndex= nrOutputUsers-min(10, nrOutputUsers)
         val topUsers=buildTopUsersFromHigherToLower(higherUserIndex,lowestUserIndex)
@@ -189,9 +186,9 @@ class UserManager
             Future{ mutableListOf<String>()}
         }else{
             //TODO: fix after tree refactoring (remove Future init)
-            val selectedIdFuture= Future{usersByChannelsCountTree.select(higherUserIndex).getId()}
+            val selectedIdFuture= Future{usersByChannelsCountTree.select(lowerUserIndex).getId()}
             val userNameFuture= selectedIdFuture.thenCompose { getUsernameById(it) }
-            buildTopUsersFromHigherToLower(higherUserIndex-1,lowerUserIndex)
+            buildTopUsersFromHigherToLower(higherUserIndex,lowerUserIndex+1)
                     .thenCompose { list-> userNameFuture.thenApply { name-> list.add(name); list } }
         }
 
@@ -230,13 +227,6 @@ class UserManager
         // increase logged in users only, cause number of users was increased by id generator
         return if (status == LoginStatus.IN) statisticsManager.increaseLoggedInUsersBy().thenApply { userId }
         else Future{ userId}
-    }
-
-
-    private fun generateNextUserId(currentUserId: Long?): CompletableFuture<Long> {
-        if (currentUserId == INVALID_USER_ID) throw IllegalArgumentException("user id is not valid")
-        if (currentUserId != null) throw IllegalArgumentException("user already exist")
-        return userIdGenerator.next()
     }
 
     private fun propertiesSettersFuture(userId: Long, username: String, password: String, status:LoginStatus, privilege: PrivilegeLevel): CompletableFuture<Long> {

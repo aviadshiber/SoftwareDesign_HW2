@@ -1,6 +1,8 @@
 package il.ac.technion.cs.softwaredesign.tests
 
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
+import io.github.vjames19.futures.jdk8.ImmediateFuture
+import java.util.concurrent.CompletableFuture
 
 class SecureStorageHashMap : SecureStorage{
     class ByteArrayKey(private val bytes: ByteArray) {
@@ -11,11 +13,12 @@ class SecureStorageHashMap : SecureStorage{
     }
     private val storage = mutableMapOf<ByteArrayKey,ByteArray>()
 
-    override fun read(key: ByteArray): ByteArray? {
-        return storage[ByteArrayKey(key)]
+    override fun read(key: ByteArray): CompletableFuture<ByteArray?> {
+        return ImmediateFuture{storage[ByteArrayKey(key)]}
     }
 
-    override fun write(key: ByteArray, value: ByteArray) {
+    override fun write(key: ByteArray, value: ByteArray): CompletableFuture<Unit> {
         storage[ByteArrayKey(key)] = value
+        return ImmediateFuture{Unit}
     }
 }

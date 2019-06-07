@@ -3,6 +3,7 @@ package il.ac.technion.cs.softwaredesign.managers
 import il.ac.technion.cs.softwaredesign.storage.api.ITokenManager
 import il.ac.technion.cs.softwaredesign.storage.users.IUserStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.INVALID_USER_ID
+import io.github.vjames19.futures.jdk8.ImmediateFuture
 import java.security.SecureRandom
 import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
@@ -12,12 +13,13 @@ import javax.inject.Singleton
 class TokenManager @Inject constructor(private val userStorage: IUserStorage) : ITokenManager {
 
     override fun isTokenValid(token: String): CompletableFuture<Boolean> {
-        return userStorage.getUserIdByToken(token).thenApply { if(it==null) null else it != INVALID_USER_ID }
+        return userStorage.getUserIdByToken(token).thenApply { if(it==null) false else it != INVALID_USER_ID }
     }
 
     override fun getUserIdByToken(token: String): CompletableFuture<Long?> {
         return userStorage.getUserIdByToken(token)
-                .thenApply {  if (it == null || it == INVALID_USER_ID)  null else it }
+                .thenApply {    if (it == null || it == INVALID_USER_ID)  null
+                                else it }
     }
 
     override fun assignTokenToUserId(userId: Long): CompletableFuture<String> {
@@ -74,7 +76,7 @@ class TokenManager @Inject constructor(private val userStorage: IUserStorage) : 
             if (!it) {
                 generateValidUserToken()
             } else {
-                CompletableFuture.supplyAsync{token}
+                ImmediateFuture{token}
             }
         }
     }

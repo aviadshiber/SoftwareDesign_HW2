@@ -52,7 +52,9 @@ import java.util.*
  * Initializes an empty symbol table.
  */
 class SecureAVLTree<Key : ISecureStorageKey<Key>>
-constructor(private val secureStorage: SecureStorage, private val keyDefault: () -> Key) {
+constructor(private val primitiveStorage: SecureStorage, private val keyDefault: () -> Key) {
+
+    private val secureStorage: StorageWrapper = StorageWrapper(primitiveStorage)
     /**
      * The root node.
      */
@@ -65,7 +67,7 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
             if (rootIndex <= ROOT_INIT_INDEX) return null
 
             val rootByteArray = secureStorage.read(rootIndexByteArray)
-                        ?: throw NullPointerException("root cannot be null")
+                    ?: throw NullPointerException("root cannot be null")
             return Node(rootByteArray, Pointer(rootIndex))
 
         }
@@ -663,7 +665,7 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
      * This class represents an inner node of the AVL tree.
      */
     private inner class Node : IStorageConvertable<Node> {
-        val addressGenerator: ISequenceGenerator = SecureSequenceGenerator(secureStorage)
+        val addressGenerator: SecureSequenceGenerator = SecureSequenceGenerator(secureStorage)
 
         var pointer: IPointer
 
@@ -831,7 +833,7 @@ constructor(private val secureStorage: SecureStorage, private val keyDefault: ()
             end=Long.SIZE_BYTES * (SECURE_AVL_STORAGE_NUM_PROPERTIES-1)
             val key=keyDefault()
             key.fromByteArray(storedValue.drop(end).toByteArray())
-           return Pair(details,key)
+            return Pair(details,key)
         }
     }
 

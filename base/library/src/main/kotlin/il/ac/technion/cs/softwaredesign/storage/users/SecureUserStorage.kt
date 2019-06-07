@@ -28,8 +28,9 @@ class SecureUserStorage @Inject constructor(
     }
 
     override fun getUserIdByToken(tokenKey: String): CompletableFuture<Long?> {
-        val userIdByteArray = tokenStorage.read(tokenKey.toByteArray())
-        return userIdByteArray.thenApply { if (it == null) null else ConversionUtils.bytesToLong(it) }
+        return tokenStorage.read(tokenKey.toByteArray()).
+                thenApply { if (it == null) null
+                            else ConversionUtils.bytesToLong(it) }
     }
 
     override fun setUserIdToToken(tokenKey: String, userIdValue: Long): CompletableFuture<Unit> {
