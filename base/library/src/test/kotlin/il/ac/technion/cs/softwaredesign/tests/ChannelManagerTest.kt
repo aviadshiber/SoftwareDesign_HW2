@@ -134,7 +134,7 @@ class ChannelManagerTest {
     fun `isChannelIdExists returned false if channel removed by id`() {
         assertThat(
                 channelManager.addChannel("ron")
-                        .thenCompose { channelManager.removeChannel(it); ImmediateFuture{it} }
+                        .thenCompose { channelManager.removeChannel(it); ImmediateFuture { it } }
                         .thenCompose { channelManager.isChannelIdExists(it) }
                         .get(),
                 isFalse, { "channel id does not exist" }
@@ -169,17 +169,20 @@ class ChannelManagerTest {
 
     @Test
     fun `get name throws for invalid channel id`() {
-        assertThrows<IllegalArgumentException> { channelManager.addChannel("ron").thenCompose{
-            channelManager.getChannelNameById(MANAGERS_CONSTS.CHANNEL_INVALID_ID)
-        }.joinException()
+        assertThrows<IllegalArgumentException> {
+            channelManager.addChannel("ron").thenCompose {
+                channelManager.getChannelNameById(MANAGERS_CONSTS.CHANNEL_INVALID_ID)
+            }.joinException()
         }
     }
 
     @Test
     fun `get name throws for channel id that does not exist`() {
-        assertThrows<IllegalArgumentException> { channelManager.addChannel("ron").thenCompose{
-            channelManager.getChannelNameById(2000L)
-        }.joinException() }
+        assertThrows<IllegalArgumentException> {
+            channelManager.addChannel("ron").thenCompose {
+                channelManager.getChannelNameById(2000L)
+            }.joinException()
+        }
     }
 
     @Test
@@ -204,9 +207,11 @@ class ChannelManagerTest {
 
     @Test
     fun `getNumberOfActiveMembers throws for CHANNEL_INVALID_ID`() {
-        assertThrows<IllegalArgumentException> { channelManager.addChannel("ron").thenCompose{
-            channelManager.getNumberOfActiveMembersInChannel(MANAGERS_CONSTS.CHANNEL_INVALID_ID)
-        }.joinException() }
+        assertThrows<IllegalArgumentException> {
+            channelManager.addChannel("ron").thenCompose {
+                channelManager.getNumberOfActiveMembersInChannel(MANAGERS_CONSTS.CHANNEL_INVALID_ID)
+            }.joinException()
+        }
     }
 
     @Test
@@ -214,14 +219,15 @@ class ChannelManagerTest {
         assertThrows<IllegalArgumentException> {
             channelManager.addChannel("ron").thenCompose {
                 channelManager.getNumberOfActiveMembersInChannel(it + 1L)
-            }.joinException() }
+            }.joinException()
+        }
     }
 
     @Test
     fun `getNumberOfActiveMembers throws for removed channel id`() {
         assertThrows<IllegalArgumentException> {
             channelManager.addChannel("ron")
-                    .thenCompose { channelManager.removeChannel(it); ImmediateFuture{it} }
+                    .thenCompose { channelManager.removeChannel(it); ImmediateFuture { it } }
                     .thenCompose { channelManager.getNumberOfActiveMembersInChannel(it) }
                     .joinException()
         }
@@ -259,7 +265,7 @@ class ChannelManagerTest {
     fun `getNumberOfMembers throws for removed channel id`() {
         assertThrows<IllegalArgumentException> {
             channelManager.addChannel("ron")
-                    .thenCompose { channelManager.removeChannel(it); ImmediateFuture{it} }
+                    .thenCompose { channelManager.removeChannel(it); ImmediateFuture { it } }
                     .thenCompose { channelManager.getNumberOfMembersInChannel(it) }
                     .joinException()
         }
@@ -279,7 +285,7 @@ class ChannelManagerTest {
     fun `inc_dec NumberOfActiveMembers throws for invalid channel id`() {
         assertThrows<IllegalArgumentException> {
             channelManager.addChannel("ron")
-                    .thenCompose { channelManager.increaseNumberOfActiveMembersInChannelBy(it+1L, 8L) }
+                    .thenCompose { channelManager.increaseNumberOfActiveMembersInChannelBy(it + 1L, 8L) }
                     .joinException()
         }
         assertThrows<IllegalArgumentException> { channelManager.decreaseNumberOfActiveMembersInChannelBy(MANAGERS_CONSTS.CHANNEL_INVALID_ID, 6L).joinException() }
@@ -304,6 +310,7 @@ class ChannelManagerTest {
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
     }
 
+    //TODO: failed test
     @Test
     fun `updateNumberOfMembers update value`() {
         val id1 = channelManager.addChannel("ron").get()
@@ -485,198 +492,198 @@ class ChannelManagerTest {
         assertThat(channelManager.getChannelOperatorsList(id).get(), equalTo(operators.toList()))
     }
 
-//    @Test
-//    fun `removeMembers&operators makes list empty`() {
-//        val id = channelManager.addChannel("ron")
-//
-//        val members = mutableListOf<Long>(20L, 8000L, 500L, 4747L)
-//        val operators = mutableListOf<Long>(2066L, 8040L, 5011L, 47337L)
-//
-//        members.forEach({ channelManager.addMemberToChannel(id, it) })
-//        operators.forEach({ channelManager.addOperatorToChannel(id, it) })
-//
-//        members.forEach({ channelManager.removeMemberFromChannel(id, it) })
-//        operators.forEach({ channelManager.removeOperatorFromChannel(id, it) })
-//
-//        assertThat(channelManager.getChannelMembersList(id), equalTo(emptyList()))
-//        assertThat(channelManager.getChannelOperatorsList(id), equalTo(emptyList()))
-//    }
-//
-//    @Test
-//    fun `getNumberOfChannels update after add`() {
-//        assertThat(channelManager.getNumberOfChannels(), equalTo(0L))
-//        channelManager.addChannel("ron")
-//        assertThat(channelManager.getNumberOfChannels(), equalTo(1L))
-//        channelManager.addChannel("ron1")
-//        channelManager.addChannel("ron2")
-//        channelManager.addChannel("ron3")
-//        assertThat(channelManager.getNumberOfChannels(), equalTo(4L))
-//    }
-//
-//    @Test
-//    fun `getNumberOfChannels update after remove`() {
-//        val id0 = channelManager.addChannel("ron")
-//        val id1 = channelManager.addChannel("ron1")
-//        val id2 = channelManager.addChannel("ron2")
-//        var id3 = channelManager.addChannel("ron3")
-//        channelManager.removeChannel(id3)
-//        assertThat(channelManager.getNumberOfChannels(), equalTo(3L))
-//        channelManager.removeChannel(id0)
-//        assertThat(channelManager.getNumberOfChannels(), equalTo(2L))
-//        channelManager.removeChannel(id1)
-//        channelManager.removeChannel(id2)
-//        assertThat(channelManager.getNumberOfChannels(), equalTo(0L))
-//        id3 = channelManager.addChannel("ron3")
-//        assertThat(channelManager.getNumberOfChannels(), equalTo(1L))
-//        channelManager.removeChannel(id3)
-//        assertThat(channelManager.getNumberOfChannels(), equalTo(0L))
-//    }
-//
-//    @Test
-//    fun `increase decrease number of active members`() {
-//        val id0 = channelManager.addChannel("ron")
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id0), equalTo(0L))
-//        channelManager.increaseNumberOfActiveMembersInChannelBy(id0)
-//        channelManager.increaseNumberOfActiveMembersInChannelBy(id0)
-//        channelManager.increaseNumberOfActiveMembersInChannelBy(id0)
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id0), equalTo(3L))
-//        channelManager.decreaseNumberOfActiveMembersInChannelBy(id0)
-//        channelManager.increaseNumberOfActiveMembersInChannelBy(id0)
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id0), equalTo(3L))
-//        channelManager.decreaseNumberOfActiveMembersInChannelBy(id0)
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id0), equalTo(2L))
-//        channelManager.decreaseNumberOfActiveMembersInChannelBy(id0)
-//        channelManager.decreaseNumberOfActiveMembersInChannelBy(id0)
-//        assertThat(channelManager.getNumberOfActiveMembersInChannel(id0), equalTo(0L))
-//    }
-//
-//    @Test
-//    fun `after removing channel, list size has changed`() {
-//        val id1 = channelManager.addChannel("ron")
-//        assertThat(channelManager.getNumberOfMembersInChannel(id1), equalTo(0L))
-//        channelManager.addMemberToChannel(id1, 123L)
-//        channelManager.addMemberToChannel(id1, 128L)
-//        channelManager.addMemberToChannel(id1, 129L)
-//        channelManager.removeMemberFromChannel(id1, 123L)
-//        assertThat(channelManager.getNumberOfMembersInChannel(id1), equalTo(2L))
-//        assertThat(channelManager.getChannelMembersList(id1).size.toLong(), equalTo(channelManager.getNumberOfMembersInChannel(id1)))
-//    }
-//
-//    @Test
-//    fun `add the same element twice throws and list size is valid`() {
-//        val id1 = channelManager.addChannel("ron")
-//        assertThat(channelManager.getNumberOfMembersInChannel(id1), equalTo(0L))
-//        channelManager.addMemberToChannel(id1, 123L)
-//        assertThrows<IllegalAccessException> { channelManager.addMemberToChannel(id1, 123L) }
-//        assertThat(channelManager.getNumberOfMembersInChannel(id1), equalTo(1L))
-//        assertThat(channelManager.getChannelMembersList(id1).size.toLong(), equalTo(channelManager.getNumberOfMembersInChannel(id1)))
-//    }
-//
-//    @Test
-//    fun `remove the same element twice throws and list size is valid`() {
-//        val id1 = channelManager.addChannel("ron")
-//        assertThat(channelManager.getNumberOfMembersInChannel(id1), equalTo(0L))
-//        assertThat(channelManager.getChannelMembersList(id1).size.toLong(), equalTo(channelManager.getNumberOfMembersInChannel(id1)))
-//        channelManager.addMemberToChannel(id1, 123L)
-//        channelManager.removeMemberFromChannel(id1, 123L)
-//        assertThrows<IllegalAccessException> { channelManager.removeMemberFromChannel(id1, 123L) }
-//        assertThat(channelManager.getNumberOfMembersInChannel(id1), equalTo(0L))
-//        assertThat(channelManager.getChannelMembersList(id1).size.toLong(), equalTo(channelManager.getNumberOfMembersInChannel(id1)))
-//    }
-//
-//    @Test
-//    fun `test get top 10`() {
-//        val ids = (0..40).map { channelManager.addChannel(it.toString()) }
-//        ids.forEach { channelManager.addMemberToChannel(it, it * 100) }
-//
-//        val best = mutableListOf<Long>(ids[14], ids[37], ids[5], ids[7], ids[20], ids[12], ids[18], ids[33], ids[8], ids[0])
-//        (5000..5028).forEach { channelManager.addMemberToChannel(best[0], it.toLong()) }
-//        assertThat(channelManager.getNumberOfMembersInChannel(best[0]), equalTo(30L))
-//        (5000..5022).forEach { channelManager.addMemberToChannel(best[1], it.toLong()) }
-//        assertThat(channelManager.getNumberOfMembersInChannel(best[1]), equalTo(24L))
-//        (5000..5020).forEach { channelManager.addMemberToChannel(best[2], it.toLong()) }
-//        assertThat(channelManager.getNumberOfMembersInChannel(best[2]), equalTo(22L))
-//        (5000..5019).forEach { channelManager.addMemberToChannel(best[3], it.toLong()) }
-//        assertThat(channelManager.getNumberOfMembersInChannel(best[3]), equalTo(21L))
-//        (5000..5017).forEach { channelManager.addMemberToChannel(best[4], it.toLong()) }
-//        assertThat(channelManager.getNumberOfMembersInChannel(best[4]), equalTo(19L))
-//        (5000..5012).forEach { channelManager.addMemberToChannel(best[5], it.toLong()) }
-//        assertThat(channelManager.getNumberOfMembersInChannel(best[5]), equalTo(14L))
-//        (5000..5009).forEach { channelManager.addMemberToChannel(best[6], it.toLong()) }
-//        assertThat(channelManager.getNumberOfMembersInChannel(best[6]), equalTo(11L))
-//        (5000..5006).forEach { channelManager.addMemberToChannel(best[7], it.toLong()) }
-//        assertThat(channelManager.getNumberOfMembersInChannel(best[7]), equalTo(8L))
-//        (5000..5004).forEach { channelManager.addMemberToChannel(best[8], it.toLong()) }
-//        assertThat(channelManager.getNumberOfMembersInChannel(best[8]), equalTo(6L))
-//        (5000..5001).forEach { channelManager.addMemberToChannel(best[9], it.toLong()) }
-//        assertThat(channelManager.getNumberOfMembersInChannel(best[9]), equalTo(3L))
-//
-//        val output = channelManager.getTop10ChannelsByUsersCount()
-//
-//        for ((k, username) in output.withIndex()) {
-//            assertThat(channelManager.getChannelIdByName(username), equalTo(best[k]))
-//        }
-//    }
-//
-//    @Test
-//    fun `test get top 7`() {
-//        val ids = (0..6).map { channelManager.addChannel(it.toString()) }
-//        ids.forEach { channelManager.addMemberToChannel(it, it * 100) }
-//
-//        val best = mutableListOf<Long>(ids[2], ids[5], ids[0], ids[4], ids[3], ids[1], ids[6])
-//        (5000..5028).forEach { channelManager.addMemberToChannel(best[0], it.toLong()) }
-//        (5000..5022).forEach { channelManager.addMemberToChannel(best[1], it.toLong()) }
-//        (5000..5020).forEach { channelManager.addMemberToChannel(best[2], it.toLong()) }
-//        (5000..5019).forEach { channelManager.addMemberToChannel(best[3], it.toLong()) }
-//        (5000..5017).forEach { channelManager.addMemberToChannel(best[4], it.toLong()) }
-//
-//        (5000..5012).forEach { channelManager.addMemberToChannel(best[5], it.toLong()) }
-//        (5000..5012).forEach { channelManager.addMemberToChannel(best[6], it.toLong()) }
-//
-//        val output = channelManager.getTop10ChannelsByUsersCount()
-//        val outputIds = output.map { channelManager.getChannelIdByName(it) }
-//        for ((k, userId) in outputIds.withIndex()) {
-//            assertThat(userId, equalTo(best[k]))
-//        }
-//    }
-//
-//    @Test
-//    fun `check secondary order`() {
-//        val ids = (0..6).map { channelManager.addChannel(it.toString()) }
-//        ids.forEach { channelManager.addMemberToChannel(it, it * 100) }
-//
-//        val best = mutableListOf<Long>(ids[2], ids[5], ids[0], ids[3], ids[4], ids[1], ids[6])
-//        (5000..5028).forEach { channelManager.addMemberToChannel(best[0], it.toLong()) }
-//        (5000..5022).forEach { channelManager.addMemberToChannel(best[1], it.toLong()) }
-//        (5000..5020).forEach { channelManager.addMemberToChannel(best[2], it.toLong()) }
-//
-//        (5000..5017).forEach { channelManager.addMemberToChannel(best[3], it.toLong()) }
-//        (5000..5017).forEach { channelManager.addMemberToChannel(best[4], it.toLong()) }
-//
-//        (5000..5012).forEach { channelManager.addMemberToChannel(best[5], it.toLong()) }
-//        (5000..5012).forEach { channelManager.addMemberToChannel(best[6], it.toLong()) }
-//
-//        val output = channelManager.getTop10ChannelsByUsersCount()
-//        val outputIds = output.map { channelManager.getChannelIdByName(it) }
-//        for ((k, userId) in outputIds.withIndex()) {
-//            assertThat(userId, equalTo(best[k]))
-//        }
-//    }
-//
-//    @Test
-//    fun `check secondary order only`() {
-//        val ids = (0..30).map { channelManager.addChannel(it.toString()) }
-//        ids.forEach { channelManager.addMemberToChannel(it, it * 100) }
-//
-//        val output = channelManager.getTop10ChannelsByUsersCount()
-//        val outputIds = output.map { channelManager.getChannelIdByName(it) }
-//        for ((k, userId) in outputIds.withIndex()) {
-//            assertThat(userId, equalTo(ids[k]))
-//        }
-//    }
+    @Test
+    fun `removeMembers&operators makes list empty`() {
+        val id = channelManager.addChannel("ron").get()
+
+        val members = mutableListOf<Long>(20L, 8000L, 500L, 4747L)
+        val operators = mutableListOf<Long>(2066L, 8040L, 5011L, 47337L)
+
+        members.forEach({ channelManager.addMemberToChannel(id, it).get() })
+        operators.forEach({ channelManager.addOperatorToChannel(id, it).get() })
+
+        members.forEach({ channelManager.removeMemberFromChannel(id, it).get() })
+        operators.forEach({ channelManager.removeOperatorFromChannel(id, it).get() })
+
+        assertThat(channelManager.getChannelMembersList(id).get(), equalTo(emptyList()))
+        assertThat(channelManager.getChannelOperatorsList(id).get(), equalTo(emptyList()))
+    }
 
     @Test
-    fun `check active users top 10`() {
-        // TODO("Implement this test")
+    fun `getNumberOfChannels update after add`() {
+        assertThat(channelManager.getNumberOfChannels().get(), equalTo(0L))
+        channelManager.addChannel("ron").get()
+        assertThat(channelManager.getNumberOfChannels().get(), equalTo(1L))
+        channelManager.addChannel("ron1").get()
+        channelManager.addChannel("ron2").get()
+        channelManager.addChannel("ron3").get()
+        assertThat(channelManager.getNumberOfChannels().get(), equalTo(4L))
+    }
+
+    @Test
+    fun `getNumberOfChannels update after remove`() {
+        val id0 = channelManager.addChannel("ron").get()
+        val id1 = channelManager.addChannel("ron1").get()
+        val id2 = channelManager.addChannel("ron2").get()
+        var id3 = channelManager.addChannel("ron3").get()
+        channelManager.removeChannel(id3).get()
+        assertThat(channelManager.getNumberOfChannels().get(), equalTo(3L))
+        channelManager.removeChannel(id0).get()
+        assertThat(channelManager.getNumberOfChannels().get(), equalTo(2L))
+        channelManager.removeChannel(id1).get()
+        channelManager.removeChannel(id2).get()
+        assertThat(channelManager.getNumberOfChannels().get(), equalTo(0L))
+        id3 = channelManager.addChannel("ron3").get()
+        assertThat(channelManager.getNumberOfChannels().get(), equalTo(1L))
+        channelManager.removeChannel(id3).get()
+        assertThat(channelManager.getNumberOfChannels().get(), equalTo(0L))
+    }
+
+    //TODO: failed test
+    @Test
+    fun `increase decrease number of active members`() {
+        val id0 = channelManager.addChannel("ron").get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id0).get(), equalTo(0L))
+        channelManager.increaseNumberOfActiveMembersInChannelBy(id0).get()
+        channelManager.increaseNumberOfActiveMembersInChannelBy(id0).get()
+        channelManager.increaseNumberOfActiveMembersInChannelBy(id0).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id0).get(), equalTo(3L))
+        channelManager.decreaseNumberOfActiveMembersInChannelBy(id0).get()
+        channelManager.increaseNumberOfActiveMembersInChannelBy(id0).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id0).get(), equalTo(3L))
+        channelManager.decreaseNumberOfActiveMembersInChannelBy(id0).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id0).get(), equalTo(2L))
+        channelManager.decreaseNumberOfActiveMembersInChannelBy(id0).get()
+        channelManager.decreaseNumberOfActiveMembersInChannelBy(id0).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id0).get(), equalTo(0L))
+    }
+
+    @Test
+    fun `after removing channel, list size has changed`() {
+        val id1 = channelManager.addChannel("ron").get()
+        assertThat(channelManager.getNumberOfMembersInChannel(id1).get(), equalTo(0L))
+        channelManager.addMemberToChannel(id1, 123L).get()
+        channelManager.addMemberToChannel(id1, 128L).get()
+        channelManager.addMemberToChannel(id1, 129L).get()
+        channelManager.removeMemberFromChannel(id1, 123L).get()
+        assertThat(channelManager.getNumberOfMembersInChannel(id1).get(), equalTo(2L))
+        assertThat(channelManager.getChannelMembersList(id1).get().size.toLong(), equalTo(channelManager.getNumberOfMembersInChannel(id1).get()))
+    }
+
+    @Test
+    fun `add the same element twice throws and list size is valid`() {
+        val id1 = channelManager.addChannel("ron").get()
+        assertThat(channelManager.getNumberOfMembersInChannel(id1).get(), equalTo(0L))
+        channelManager.addMemberToChannel(id1, 123L).get()
+        assertThrows<IllegalAccessException> { channelManager.addMemberToChannel(id1, 123L).joinException() }
+        assertThat(channelManager.getNumberOfMembersInChannel(id1).get(), equalTo(1L))
+        assertThat(channelManager.getChannelMembersList(id1).get().size.toLong(), equalTo(channelManager.getNumberOfMembersInChannel(id1).get()))
+    }
+
+    @Test
+    fun `remove the same element twice throws and list size is valid`() {
+        val id1 = channelManager.addChannel("ron").get()
+        assertThat(channelManager.getNumberOfMembersInChannel(id1).get(), equalTo(0L))
+        assertThat(channelManager.getChannelMembersList(id1).get().size.toLong(), equalTo(channelManager.getNumberOfMembersInChannel(id1).get()))
+        channelManager.addMemberToChannel(id1, 123L).get()
+        channelManager.removeMemberFromChannel(id1, 123L).get()
+        assertThrows<IllegalAccessException> { channelManager.removeMemberFromChannel(id1, 123L).joinException() }
+        assertThat(channelManager.getNumberOfMembersInChannel(id1).get(), equalTo(0L))
+        assertThat(channelManager.getChannelMembersList(id1).get().size.toLong(), equalTo(channelManager.getNumberOfMembersInChannel(id1).get()))
+    }
+
+    //TODO: stackoverflow
+    @Test
+    fun `test get top 10`() {
+        val ids = (0..40).map { channelManager.addChannel(it.toString()).get() }
+        ids.forEach { channelManager.addMemberToChannel(it, it * 100).get() }
+
+        val best = mutableListOf<Long>(ids[14], ids[37], ids[5], ids[7], ids[20], ids[12], ids[18], ids[33], ids[8], ids[0])
+        (5000..5028).forEach { channelManager.addMemberToChannel(best[0], it.toLong()).get() }
+        assertThat(channelManager.getNumberOfMembersInChannel(best[0]).get(), equalTo(30L))
+        (5000..5022).forEach { channelManager.addMemberToChannel(best[1], it.toLong()).get() }
+        assertThat(channelManager.getNumberOfMembersInChannel(best[1]).get(), equalTo(24L))
+        (5000..5020).forEach { channelManager.addMemberToChannel(best[2], it.toLong()).get() }
+        assertThat(channelManager.getNumberOfMembersInChannel(best[2]).get(), equalTo(22L))
+        (5000..5019).forEach { channelManager.addMemberToChannel(best[3], it.toLong()).get() }
+        assertThat(channelManager.getNumberOfMembersInChannel(best[3]).get(), equalTo(21L))
+        (5000..5017).forEach { channelManager.addMemberToChannel(best[4], it.toLong()).get() }
+        assertThat(channelManager.getNumberOfMembersInChannel(best[4]).get(), equalTo(19L))
+        (5000..5012).forEach { channelManager.addMemberToChannel(best[5], it.toLong()).get() }
+        assertThat(channelManager.getNumberOfMembersInChannel(best[5]).get(), equalTo(14L))
+        (5000..5009).forEach { channelManager.addMemberToChannel(best[6], it.toLong()).get() }
+        assertThat(channelManager.getNumberOfMembersInChannel(best[6]).get(), equalTo(11L))
+        (5000..5006).forEach { channelManager.addMemberToChannel(best[7], it.toLong()).get() }
+        assertThat(channelManager.getNumberOfMembersInChannel(best[7]).get(), equalTo(8L))
+        (5000..5004).forEach { channelManager.addMemberToChannel(best[8], it.toLong()).get() }
+        assertThat(channelManager.getNumberOfMembersInChannel(best[8]).get(), equalTo(6L))
+        (5000..5001).forEach { channelManager.addMemberToChannel(best[9], it.toLong()).get() }
+        assertThat(channelManager.getNumberOfMembersInChannel(best[9]).get(), equalTo(3L))
+
+        val output = channelManager.getTop10ChannelsByUsersCount().get()
+
+        for ((k, username) in output.withIndex()) {
+            assertThat(channelManager.getChannelIdByName(username).get(), equalTo(best[k]))
+        }
+    }
+
+    //TODO: stackoverflow
+    @Test
+    fun `test get top 7`() {
+        val ids = (0..6).map { channelManager.addChannel(it.toString()).get() }
+        ids.forEach { channelManager.addMemberToChannel(it, it * 100).get() }
+
+        val best = mutableListOf<Long>(ids[2], ids[5], ids[0], ids[4], ids[3], ids[1], ids[6])
+        (5000..5028).forEach { channelManager.addMemberToChannel(best[0], it.toLong()).get() }
+        (5000..5022).forEach { channelManager.addMemberToChannel(best[1], it.toLong()).get() }
+        (5000..5020).forEach { channelManager.addMemberToChannel(best[2], it.toLong()).get() }
+        (5000..5019).forEach { channelManager.addMemberToChannel(best[3], it.toLong()).get() }
+        (5000..5017).forEach { channelManager.addMemberToChannel(best[4], it.toLong()).get() }
+
+        (5000..5012).forEach { channelManager.addMemberToChannel(best[5], it.toLong()).get() }
+        (5000..5012).forEach { channelManager.addMemberToChannel(best[6], it.toLong()).get() }
+
+        val output = channelManager.getTop10ChannelsByUsersCount().get()
+        val outputIds = output.map { channelManager.getChannelIdByName(it).get() }
+        for ((k, userId) in outputIds.withIndex()) {
+            assertThat(userId, equalTo(best[k]))
+        }
+    }
+
+    //TODO: stackoverflow
+    @Test
+    fun `check secondary order`() {
+        val ids = (0..6).map { channelManager.addChannel(it.toString()).get() }
+        ids.forEach { channelManager.addMemberToChannel(it, it * 100).get() }
+
+        val best = mutableListOf<Long>(ids[2], ids[5], ids[0], ids[3], ids[4], ids[1], ids[6])
+        (5000..5028).forEach { channelManager.addMemberToChannel(best[0], it.toLong()).get() }
+        (5000..5022).forEach { channelManager.addMemberToChannel(best[1], it.toLong()).get() }
+        (5000..5020).forEach { channelManager.addMemberToChannel(best[2], it.toLong()).get() }
+
+        (5000..5017).forEach { channelManager.addMemberToChannel(best[3], it.toLong()).get() }
+        (5000..5017).forEach { channelManager.addMemberToChannel(best[4], it.toLong()).get() }
+
+        (5000..5012).forEach { channelManager.addMemberToChannel(best[5], it.toLong()).get() }
+        (5000..5012).forEach { channelManager.addMemberToChannel(best[6], it.toLong()).get() }
+
+        val output = channelManager.getTop10ChannelsByUsersCount().get()
+        val outputIds = output.map { channelManager.getChannelIdByName(it).get() }
+        for ((k, userId) in outputIds.withIndex()) {
+            assertThat(userId, equalTo(best[k]))
+        }
+    }
+
+    //TODO: stackoverflow
+    @Test
+    fun `check secondary order only`() {
+        val ids = (0..30).map { channelManager.addChannel(it.toString()).get() }
+        ids.forEach { channelManager.addMemberToChannel(it, it * 100).get() }
+
+        val output = channelManager.getTop10ChannelsByUsersCount().get()
+        val outputIds = output.map { channelManager.getChannelIdByName(it).get() }
+        for ((k, userId) in outputIds.withIndex()) {
+            assertThat(userId, equalTo(ids[k]))
+        }
     }
 }

@@ -45,8 +45,10 @@ class UserManager
                 .thenCompose { userId->userStorage.setUserIdToUsername(username, userId); ImmediateFuture{userId} }
                 .thenCompose { userId->propertiesSettersFuture(userId,username,password,status,privilege) }
                 .thenCompose { userId->initChannelListFuture(userId) }
-                .thenCompose { userId->addNewUserToUserTreeFuture(userId = userId) }
-                .thenCompose { userId->increaseUserLoginFuture(userId,status) }
+                .thenCompose { userId->
+                    addNewUserToUserTreeFuture(userId = userId)
+                    increaseUserLoginFuture(userId,status)
+                }
     }
 
     /** GETTERS & SETTERS **/
@@ -127,7 +129,7 @@ class UserManager
             it.add(channelId)
             it
         }.thenCompose { updateListFuture(userId, it) }
-                .thenCompose {
+                .thenApply {
             // update tree:
             val currentSize = it.size.toLong()
             updateUserNodeFuture(userId, oldCount = currentSize - 1L, newCount = currentSize)
@@ -149,7 +151,7 @@ class UserManager
                         throw IllegalAccessException("channel id does not exists in users list")
                     it.remove(channelId)
                     it
-                }.thenCompose { updateListFuture(userId, it) }.thenCompose {
+                }.thenCompose { updateListFuture(userId, it) }.thenApply {
                     // update tree:
                     val currentSize = it.size.toLong()
                     updateUserNodeFuture(userId, oldCount = currentSize + 1L, newCount = currentSize)
@@ -183,10 +185,10 @@ class UserManager
 
     private fun buildTopUsersFromHigherToLower(higherUserIndex:Long,lowerUserIndex:Long) :CompletableFuture<MutableList<String>>{
         return if(higherUserIndex<lowerUserIndex){
-            Future{ mutableListOf<String>()}
+            ImmediateFuture{ mutableListOf<String>()}
         }else{
             //TODO: fix after tree refactoring (remove Future init)
-            val selectedIdFuture= Future{usersByChannelsCountTree.select(lowerUserIndex).getId()}
+            val selectedIdFuture= ImmediateFuture{usersByChannelsCountTree.select(lowerUserIndex).getId()}
             val userNameFuture= selectedIdFuture.thenCompose { getUsernameById(it) }
             buildTopUsersFromHigherToLower(higherUserIndex,lowerUserIndex+1)
                     .thenCompose { list-> userNameFuture.thenApply { name-> list.add(name); list } }
@@ -201,26 +203,17 @@ class UserManager
         return Future.allAsList(listOf(listPropertySetterFuture,sizePropertySetterFuture)).map { userId }
     }
 
-    private fun addNewUserToUserTreeFuture(userId: Long) :CompletableFuture<Long> {
-        return Future { //TODO: remove when done refactoring of the tree & apply with userId
-            val key = CountIdKey(count = 0L, id = userId)
-            usersByChannelsCountTree.put(key)
-            userId
-        }
+    private fun addNewUserToUserTreeFuture(userId: Long) {
+        val key = CountIdKey(count = 0L, id = userId) //TODO: remove when done refactoring of the tree & apply with userId
+        usersByChannelsCountTree.put(key)
     }
 
-    private fun updateUserNodeFuture(userId: Long, oldCount: Long, newCount: Long): CompletableFuture<Unit> {
+    private fun updateUserNodeFuture(userId: Long, oldCount: Long, newCount: Long) {
         //TODO: remove Future block after tree refactoring
-        return Future {
-            val oldKey = CountIdKey(count = oldCount, id = userId)
-            usersByChannelsCountTree.delete(oldKey)
-        }.thenCompose {
-            Future {
-                val newKey = CountIdKey(count = newCount, id = userId)
-                usersByChannelsCountTree.put(newKey)
-            }
-        }
-
+        val oldKey = CountIdKey(count = oldCount, id = userId)
+        usersByChannelsCountTree.delete(oldKey)
+        val newKey = CountIdKey(count = newCount, id = userId)
+        usersByChannelsCountTree.put(newKey)
     }
 
     private fun increaseUserLoginFuture(userId: Long, status: LoginStatus): CompletableFuture<Long> {
