@@ -214,8 +214,6 @@ class CourseAppImpl
 
     }
 
-
-
     override fun numberOfActiveUsersInChannel(token: String, channel: String): CompletableFuture<Long> {
         return validateUserPrivilegeOnChannelFuture(token, channel)
                 .thenCompose {channelId-> channelManager.getNumberOfActiveMembersInChannel(channelId) }
@@ -353,13 +351,15 @@ class CourseAppImpl
     private fun updateUserStatusInChannels(userId: Long, newStatus: IUserManager.LoginStatus): CompletableFuture<Unit> {
         return userManager.getChannelListOfUser(userId).thenCompose {
             list->
-            if(newStatus==IUserManager.LoginStatus.IN){
+            if(newStatus==IUserManager.LoginStatus.IN && list.isNotEmpty()){
                 list.map { channelId-> channelManager.increaseNumberOfActiveMembersInChannelBy(channelId)  }
                         .reduce { acc, completableFuture -> acc.thenCompose {completableFuture  } }
-            }else{
+            }else if(newStatus==IUserManager.LoginStatus.OUT && list.isNotEmpty()){
                 list.map { channelId-> channelManager.decreaseNumberOfActiveMembersInChannelBy(channelId)
                         .thenCompose {  channelManager.removeOperatorFromChannel(channelId, userId) }
                      }.reduce { acc, completableFuture -> acc.thenCompose {completableFuture  } }
+            }else{
+                ImmediateFuture { Unit }
             }
         }
 

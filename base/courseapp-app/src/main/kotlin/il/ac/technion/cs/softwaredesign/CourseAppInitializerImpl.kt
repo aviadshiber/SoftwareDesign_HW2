@@ -8,6 +8,8 @@ import il.ac.technion.cs.softwaredesign.managers.ChannelByUserCountStorage
 import il.ac.technion.cs.softwaredesign.managers.StatisticsStorage
 import il.ac.technion.cs.softwaredesign.managers.UsersByChannelCountStorage
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
+import io.github.vjames19.futures.jdk8.ImmediateFuture
+import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
 
 class CourseAppInitializerImpl
@@ -17,9 +19,10 @@ class CourseAppInitializerImpl
                     @ChannelByActiveUserCountStorage private val channelByActiveUserCountStorage: SecureStorage
 ) : CourseAppInitializer {
 
-    override fun setup() {
+    override fun setup(): CompletableFuture<Unit> {
         initStatistics()
         initTrees()
+        return ImmediateFuture { Unit } // TODO: fix
     }
 
     private fun initStatistics() {
