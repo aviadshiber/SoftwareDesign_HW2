@@ -219,7 +219,7 @@ class UserManager
     private fun increaseUserLoginFuture(userId: Long, status: LoginStatus): CompletableFuture<Long> {
         // increase logged in users only, cause number of users was increased by id generator
         return if (status == LoginStatus.IN) statisticsManager.increaseLoggedInUsersBy().thenApply { userId }
-        else Future{ userId}
+        else ImmediateFuture{ userId}
     }
 
     private fun propertiesSettersFuture(userId: Long, username: String, password: String, status:LoginStatus, privilege: PrivilegeLevel): CompletableFuture<Long> {
