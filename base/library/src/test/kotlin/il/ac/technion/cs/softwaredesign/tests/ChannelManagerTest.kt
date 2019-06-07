@@ -159,19 +159,10 @@ class ChannelManagerTest {
 
     @Test
     fun `get id returned the given id that returned in add`() {
-        var id1 = -1L
-        var id2 = -1L
-        var id3 = -1L
-
-        assertThat(
-            channelManager.addChannel("ron")
-                    .thenCompose { id1 = it; channelManager.addChannel("ben") }
-                    .thenCompose { id2 = it; channelManager.addChannel("aviad") }
-                    .thenCompose { id3 = it; channelManager.getChannelIdByName("ron") }
-                    .get(),
-                equalTo(id1), { "ids are not identical" }
-        )
-
+        val id1 = channelManager.addChannel("ron").get()
+        val id2 = channelManager.addChannel("ben").get()
+        val id3 = channelManager.addChannel("aviad").get()
+        assertThat(channelManager.getChannelIdByName("ron").get(), equalTo(id1), { "ids are not identical" })
         assertThat(channelManager.getChannelIdByName("ben").get(), equalTo(id2), { "ids are not identical" })
         assertThat(channelManager.getChannelIdByName("aviad").get(), equalTo(id3), { "ids are not identical" })
     }
@@ -193,38 +184,20 @@ class ChannelManagerTest {
 
     @Test
     fun `get name returned the right name`() {
-        var id1 = -1L
-        var id2 = -1L
-        var id3 = -1L
-
-        assertThat(
-                channelManager.addChannel("ron")
-                        .thenCompose { id1 = it; channelManager.addChannel("ben") }
-                        .thenCompose { id2 = it; channelManager.addChannel("aviad") }
-                        .thenCompose { id3 = it;  channelManager.getChannelNameById(id1)}
-                        .get(),
-                equalTo("ron"), { "names are not identical" }
-        )
-
+        val id1 = channelManager.addChannel("ron").get()
+        val id2 = channelManager.addChannel("ben").get()
+        val id3 = channelManager.addChannel("aviad").get()
+        assertThat(channelManager.getChannelNameById(id1).get(), equalTo("ron"), { "names are not identical" })
         assertThat(channelManager.getChannelNameById(id2).get(), equalTo("ben"), { "names are not identical" })
         assertThat(channelManager.getChannelNameById(id3).get(), equalTo("aviad"), { "names are not identical" })
     }
 
     @Test
     fun `getNumberOfActiveMembers returned 0 after init`() {
-        var id1 = -1L
-        var id2 = -1L
-        var id3 = -1L
-
-        assertThat(
-                channelManager.addChannel("ron")
-                        .thenCompose { id1 = it; channelManager.addChannel("ben") }
-                        .thenCompose { id2 = it; channelManager.addChannel("aviad") }
-                        .thenCompose { id3 = it;  channelManager.getNumberOfActiveMembersInChannel(id1)}
-                        .get(),
-                equalTo(0L)
-        )
-
+        val id1 = channelManager.addChannel("ron").get()
+        val id2 = channelManager.addChannel("ben").get()
+        val id3 = channelManager.addChannel("aviad").get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1).get(), equalTo(0L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(0L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
     }
@@ -256,18 +229,10 @@ class ChannelManagerTest {
 
     @Test
     fun `getNumberOfMembers returned 0 after init`() {
-        var id1 = -1L
-        var id2 = -1L
-        var id3 = -1L
-
-        assertThat(
-                channelManager.addChannel("ron")
-                        .thenCompose { id1 = it; channelManager.addChannel("ben") }
-                        .thenCompose { id2 = it; channelManager.addChannel("aviad") }
-                        .thenCompose { id3 = it;  channelManager.getNumberOfMembersInChannel(id1)}
-                        .get(),
-                equalTo(0L)
-        )
+        val id1 = channelManager.addChannel("ron").get()
+        val id2 = channelManager.addChannel("ben").get()
+        val id3 = channelManager.addChannel("aviad").get()
+        assertThat(channelManager.getNumberOfMembersInChannel(id1).get(), equalTo(0L))
         assertThat(channelManager.getNumberOfMembersInChannel(id2).get(), equalTo(0L))
         assertThat(channelManager.getNumberOfMembersInChannel(id3).get(), equalTo(0L))
     }
@@ -322,103 +287,51 @@ class ChannelManagerTest {
 
     @Test
     fun `updateNumberOfActiveMembers update value`() {
-        var id1 = -1L
-        var id2 = -1L
-        var id3 = -1L
-
-        assertThat(
-                channelManager.addChannel("ron")
-                        .thenCompose { id1 = it; channelManager.addChannel("ben") }
-                        .thenCompose { id2 = it; channelManager.addChannel("aviad") }
-                        .thenCompose { id3 = it;  channelManager.increaseNumberOfActiveMembersInChannelBy(id1, 8L)}
-                        .thenCompose { channelManager.getNumberOfActiveMembersInChannel(id1)}
-                        .get(),
-                equalTo(8L)
-        )
+        val id1 = channelManager.addChannel("ron").get()
+        val id2 = channelManager.addChannel("ben").get()
+        val id3 = channelManager.addChannel("aviad").get()
+        channelManager.increaseNumberOfActiveMembersInChannelBy(id1, 8L).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1).get(), equalTo(8L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(0L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
-
-        assertThat(
-                channelManager.increaseNumberOfActiveMembersInChannelBy(id1, 12L)
-                        .thenCompose { channelManager.getNumberOfActiveMembersInChannel(id1)}
-                        .get(),
-                equalTo(20L)
-        )
+        channelManager.increaseNumberOfActiveMembersInChannelBy(id1, 12L).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1).get(), equalTo(20L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(0L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
-
-        assertThat(
-                channelManager.increaseNumberOfActiveMembersInChannelBy(id2, 18L)
-                        .thenCompose { channelManager.getNumberOfActiveMembersInChannel(id1)}
-                        .get(),
-                equalTo(20L)
-        )
-
+        channelManager.increaseNumberOfActiveMembersInChannelBy(id2, 18L).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1).get(), equalTo(20L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(18L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
     }
 
     @Test
     fun `updateNumberOfMembers update value`() {
-        var id1 = -1L
-        var id2 = -1L
-        var id3 = -1L
-
-        assertThat(
-                channelManager.addChannel("ron")
-                        .thenCompose { id1 = it; channelManager.addChannel("ben") }
-                        .thenCompose { id2 = it; channelManager.addChannel("aviad") }
-                        .thenCompose { id3 = it;  channelManager.increaseNumberOfActiveMembersInChannelBy(id1, 8L)}
-                        .thenCompose { channelManager.getNumberOfActiveMembersInChannel(id1)}
-                        .get(),
-                equalTo(8L)
-        )
+        val id1 = channelManager.addChannel("ron").get()
+        val id2 = channelManager.addChannel("ben").get()
+        val id3 = channelManager.addChannel("aviad").get()
+        channelManager.increaseNumberOfActiveMembersInChannelBy(id1, 8L).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1).get(), equalTo(8L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(0L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
-
-        assertThat(
-                channelManager.increaseNumberOfActiveMembersInChannelBy(id1, 12L)
-                        .thenCompose { channelManager.getNumberOfActiveMembersInChannel(id1)}
-                        .get(),
-                equalTo(20L)
-        )
+        channelManager.increaseNumberOfActiveMembersInChannelBy(id1, 12L).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1).get(), equalTo(20L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(0L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
-
-        assertThat(
-                channelManager.increaseNumberOfActiveMembersInChannelBy(id2, 18L)
-                        .thenCompose { channelManager.getNumberOfActiveMembersInChannel(id1)}
-                        .get(),
-                equalTo(20L)
-        )
+        channelManager.increaseNumberOfActiveMembersInChannelBy(id2, 18L).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1).get(), equalTo(20L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(18L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
 
-
-        assertThat(
-                channelManager.decreaseNumberOfActiveMembersInChannelBy(id1, 3L)
-                        .thenCompose { channelManager.getNumberOfActiveMembersInChannel(id1)}
-                        .get(),
-                equalTo(17L)
-        )
+        channelManager.decreaseNumberOfActiveMembersInChannelBy(id1, 3L).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1).get(), equalTo(17L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(18L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
-
-        assertThat(
-                channelManager.decreaseNumberOfActiveMembersInChannelBy(id1, 5L)
-                        .thenCompose { channelManager.getNumberOfActiveMembersInChannel(id1)}
-                        .get(),
-                equalTo(12L)
-        )
+        channelManager.decreaseNumberOfActiveMembersInChannelBy(id1, 5L).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1).get(), equalTo(12L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(18L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
-
-        assertThat(
-                channelManager.decreaseNumberOfActiveMembersInChannelBy(id2, 18L)
-                        .thenCompose { channelManager.getNumberOfActiveMembersInChannel(id1)}
-                        .get(),
-                equalTo(12L)
-        )
+        channelManager.decreaseNumberOfActiveMembersInChannelBy(id2, 18L).get()
+        assertThat(channelManager.getNumberOfActiveMembersInChannel(id1).get(), equalTo(12L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id2).get(), equalTo(0L))
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
     }
@@ -491,47 +404,34 @@ class ChannelManagerTest {
 
     @Test
     fun `add&remove MemberToChannel throws for invalid channel id`() {
-        var id = -1L;
-        assertThrows<IllegalArgumentException> {
-            channelManager.addChannel("ron")
-                    .thenCompose { id = it; channelManager.addMemberToChannel(it + 1L, 2L) }
-                    .joinException()
-        }
+        val id = channelManager.addChannel("ron").get()
+        assertThrows<IllegalArgumentException> { channelManager.addMemberToChannel(id + 1L, 2L).joinException() }
         assertThrows<IllegalArgumentException> { channelManager.removeMemberFromChannel(id + 1L, 8L).joinException() }
     }
 
     @Test
     fun `add&remove MemberToChannel throws for removed channel id`() {
-        var id = -1L;
-        assertThrows<IllegalArgumentException> {
-            channelManager.addChannel("ron")
-                    .thenCompose { id = it; channelManager.removeChannel(it) }
-                    .thenCompose { channelManager.addMemberToChannel(id, 20L) }
-                    .joinException()
-        }
+        val id = channelManager.addChannel("ron").get()
+        channelManager.removeChannel(id).get()
+        assertThrows<IllegalArgumentException> { channelManager.addMemberToChannel(id, 20L).joinException() }
         assertThrows<IllegalArgumentException> { channelManager.removeMemberFromChannel(id, 7000L).joinException() }
     }
 
     @Test
     fun `add&remove MemberToChannel throws for channel id that does not exist`() {
-        var id = -1L;
-        assertThrows<IllegalArgumentException> {
-            channelManager.addChannel("ron")
-                    .thenCompose { id = it; channelManager.removeChannel(it) }
-                    .thenCompose { channelManager.addMemberToChannel(id+1L, 20L) }
-                    .joinException()
-        }
-        assertThrows<IllegalArgumentException> { channelManager.removeMemberFromChannel(id+1L, 7000L).joinException() }
+        val id = channelManager.addChannel("ron").get()
+        channelManager.removeChannel(id).get()
+        assertThrows<IllegalArgumentException> { channelManager.addMemberToChannel(id, 20L).joinException() }
+        assertThrows<IllegalArgumentException> { channelManager.removeMemberFromChannel(id, 7000L).joinException() }
     }
 
     @Test
     fun `addMemberToChannel throws if element exists`() {
-        var id = -1L;
         assertThrows<IllegalAccessException> {
             channelManager.addChannel("ron")
-                    .thenCompose { id = it; channelManager.addMemberToChannel(it, 20L) }
-                    .thenCompose { channelManager.addOperatorToChannel(id, 7000L) }
-                    .thenCompose { channelManager.addMemberToChannel(id, 20L) }
+                    .thenCompose { channelManager.addMemberToChannel(it, 20L); ImmediateFuture { it } }
+                    .thenCompose { channelManager.addOperatorToChannel(it, 7000L); ImmediateFuture { it } }
+                    .thenCompose { channelManager.addMemberToChannel(it, 20L) }
                     .joinException()
         }
     }
@@ -547,68 +447,42 @@ class ChannelManagerTest {
 
     @Test
     fun `getMembers&operators return empty list after init`() {
-        var id = -1L
-        assertThat(
-                channelManager.addChannel("ron")
-                        .thenCompose { id = it; channelManager.getChannelMembersList(it)}
-                        .get(),
-                equalTo(emptyList())
-        )
+        val id = channelManager.addChannel("ron").get()
+        assertThat(channelManager.getChannelMembersList(id).get(), equalTo(emptyList()))
         assertThat(channelManager.getChannelOperatorsList(id).get(), equalTo(emptyList()))
     }
 
     @Test
     fun `getMembers&operators return full list`() {
-        var id = -1L
+        val id = channelManager.addChannel("ron").get()
+
         val members = listOf<Long>(20L, 8000L, 500L, 4747L)
         val operators = listOf<Long>(2066L, 8040L, 5011L, 47337L)
 
-        assertThat(
-                channelManager.addChannel("ron")
-                        .thenApply { id = it; it}
-                        .thenCompose { channelManager.addMemberToChannel(id, members[0]) }
-                        .thenCompose { channelManager.addOperatorToChannel(id, operators[0]) }
-                        .thenCompose { channelManager.addOperatorToChannel(id, operators[1]) }
-                        .thenCompose { channelManager.addMemberToChannel(id, members[1]) }
-                        .thenCompose { channelManager.addMemberToChannel(id, members[2]) }
-                        .thenCompose { channelManager.addOperatorToChannel(id, operators[2]) }
-                        .thenCompose { channelManager.addMemberToChannel(id, members[3]) }
-                        .thenCompose { channelManager.addOperatorToChannel(id, operators[3]) }
-                        .thenCompose { channelManager.getChannelMembersList(id) }
-                        .get(),
-                equalTo(members)
-        )
+        members.forEach({ channelManager.addMemberToChannel(id, it).get() })
+        operators.forEach({ channelManager.addOperatorToChannel(id, it).get() })
+
+        assertThat(channelManager.getChannelMembersList(id).get(), equalTo(members))
         assertThat(channelManager.getChannelOperatorsList(id).get(), equalTo(operators))
     }
 
     @Test
     fun `removeMembers&operators removes element`() {
-        var id = -1L
-        val members = listOf<Long>(20L, 8000L, 500L, 4747L)
-        val operators = listOf<Long>(2066L, 8040L, 5011L, 47337L)
-        val updatedMembers = members.toMutableList()
-        updatedMembers.removeAt(2)
-        val updatedOperators = operators.toMutableList()
-        updatedOperators.removeAt(2)
+        val id = channelManager.addChannel("ron").get()
 
-        assertThat(
-                channelManager.addChannel("ron")
-                        .thenApply { id = it; it}
-                        .thenCompose { channelManager.addMemberToChannel(id, members[0]) }
-                        .thenCompose { channelManager.addOperatorToChannel(id, operators[0]) }
-                        .thenCompose { channelManager.addOperatorToChannel(id, operators[1]) }
-                        .thenCompose { channelManager.addMemberToChannel(id, members[1]) }
-                        .thenCompose { channelManager.addMemberToChannel(id, members[2]) }
-                        .thenCompose { channelManager.addOperatorToChannel(id, operators[2]) }
-                        .thenCompose { channelManager.addMemberToChannel(id, members[3]) }
-                        .thenCompose { channelManager.addOperatorToChannel(id, operators[3]) }
-                        .thenCompose { channelManager.removeMemberFromChannel(id, members[2]) }
-                        .thenCompose { channelManager.removeOperatorFromChannel(id, operators[2]) }
-                        .thenCompose { channelManager.getChannelMembersList(id)}
-                        .get(),
-                equalTo(updatedMembers.toList())
-        )
-        assertThat(channelManager.getChannelOperatorsList(id).get(), equalTo(updatedOperators.toList()))
+        val members = mutableListOf<Long>(20L, 8000L, 500L, 4747L)
+        val operators = mutableListOf<Long>(2066L, 8040L, 5011L, 47337L)
+
+        members.forEach({ channelManager.addMemberToChannel(id, it).get() })
+        operators.forEach({ channelManager.addOperatorToChannel(id, it).get() })
+
+        channelManager.removeMemberFromChannel(id, members[2]).get()
+        channelManager.removeOperatorFromChannel(id, operators[2]).get()
+
+        members.removeAt(2)
+        operators.removeAt(2)
+        assertThat(channelManager.getChannelMembersList(id).get(), equalTo(members.toList()))
+        assertThat(channelManager.getChannelOperatorsList(id).get(), equalTo(operators.toList()))
     }
 
 //    @Test
