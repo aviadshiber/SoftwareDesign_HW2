@@ -137,7 +137,7 @@ class CourseAppImpl
                 .thenCompose { userId -> channelManager.getChannelIdByName(channel).thenApply { Pair(userId, it) } }
                 .thenCompose { (userId, channelId) -> validateUserMemberExistsFuture(userId, channelId) }
                 .thenCompose { (userId, channelId) ->
-                    removeUserFromChannelFuture(channelId, userId)
+                    removeUserFromChannelFuture(userId, channelId)
                 }.thenCompose { (userId, channelId) ->
                     decreaseNumberOfActiveMembersInChannelForLoggedInUserFuture(userId, channelId)
                             .thenCompose { removeChannelWhenEmptyFuture(channelId) }
@@ -160,7 +160,8 @@ class CourseAppImpl
                     userManager.getUserId(username)
                             .thenCompose { userId ->
                                 validateUserIsOperatorOrChannelAdmin(initiatorUserId, channelId, operatorPrivilege, userId)
-                                        .thenApply { userId } }
+                                        .thenApply { userId }
+                            }
                             .thenCompose { userId -> validateUserInChannel(userId, channelId) }
 
                 }.thenCompose { (channelId, userId) -> channelManager.addOperatorToChannel(channelId, userId) }
@@ -194,23 +195,18 @@ class CourseAppImpl
     private fun validateMembershipInChannelFuture(initiatorUserId: Long, channelId: Long) =
             isUserMember(initiatorUserId, channelId).thenApply { if (!it) throw UserNotAuthorizedException() }.thenApply { Pair(initiatorUserId, channelId) }
 
-    override fun channelKick(token: String, channel: String, username: String) {
-        val (initiatorUserId, channelId) = preValidations(token, channel)
-        if (!isUserOperator(initiatorUserId, channelId)) throw UserNotAuthorizedException()
-        val userId = userManager.getUserId(username)
-        if (userId == null || !isUserMember(userId, channelId)) throw NoSuchEntityException()
-
-        channelManager.removeMemberFromChannel(channelId, userId)
-        channelManager.removeOperatorFromChannel(channelId, userId)
-        userManager.removeChannelFromUser(userId, channelId) // should not throw!!
-        if (userManager.getUserStatus(userId) == IUserManager.LoginStatus.IN) {
-            channelManager.decreaseNumberOfActiveMembersInChannelBy(channelId)
-        }
-        if (channelManager.getNumberOfMembersInChannel(channelId) == 0L) {
-            channelManager.removeChannel(channelId)
-        }
+    override fun channelKick(token: String, channel: String, username: String): CompletableFuture<Unit> {
+        return preValidations(token, channel).thenCompose { (initiatorUserId, channelId) -> validateUserIsOperator(initiatorUserId, channelId) }
+                .thenCompose { channelId -> userManager.getUserId(username).thenApply { Pair(channelId, it) } }
+                .thenCompose { (channelId, userId) -> validateUserInChannel(userId, channelId) }
+                .thenCompose { (channelId, userId) -> removeUserFromChannelFuture(userId, channelId) }
+                .thenCompose { (channelId, userId) -> removeChannelFromUserFuture(userId, channelId) }
+                .thenCompose { (channelId, userId) ->
+                    decreaseNumberOfActiveMembersInChannelForLoggedInUserFuture(userId, channelId).thenApply { channelId }
+                }
+                .thenCompose { channelId -> removeChannelWhenEmptyFuture(channelId) }
     }
-
+    
     override fun isUserInChannel(token: String, channel: String, username: String): Boolean? {
         val (initiatorUserId, channelId) = preValidations(token, channel)
         val isUserAdmin = userManager.getUserPrivilege(initiatorUserId) == IUserManager.PrivilegeLevel.ADMIN
@@ -237,10 +233,19 @@ class CourseAppImpl
     class ImpossibleSituation(message: String? = null, cause: Throwable? = null) : Exception(message, cause)
 
     /** PRIVATES **/
+
+    private fun removeChannelFromUserFuture(userId: Long, channelId: Long) =
+            userManager.removeChannelFromUser(userId, channelId).thenApply { Pair(channelId, userId) }
+
+    private fun validateUserIsOperator(initiatorUserId: Long, channelId: Long) =
+            isUserOperator(initiatorUserId, channelId)
+                    .thenApply { if (!it) throw UserNotAuthorizedException() }
+                    .thenApply { channelId }
+
     private fun validateChannelNameExistsFuture(channel: String) =
             channelManager.isChannelNameExists(channel).thenApply { if (!it) throw NoSuchEntityException() }
 
-    private fun removeUserFromChannelFuture(channelId: Long, userId: Long): CompletableFuture<Pair<Long, Long>> {
+    private fun removeUserFromChannelFuture(userId: Long, channelId: Long): CompletableFuture<Pair<Long, Long>> {
         val removeMemberFuture = channelManager.removeMemberFromChannel(channelId, userId)
         val removeOperatorFuture = channelManager.removeOperatorFromChannel(channelId, userId)
         return Future.allAsList(listOf(removeMemberFuture, removeOperatorFuture)).thenApply { Pair(userId, channelId) }
