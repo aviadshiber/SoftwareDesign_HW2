@@ -112,7 +112,7 @@ class CourseAppImpl
         return validateTokenFuture(token)
                 .thenApply { regex matches channel }.thenApply { if (!it) throw NameFormatException() }
                 .thenCompose { tokenManager.getUserIdByToken(token) }
-                .thenApply { it!! }
+                .thenApply { it!! } ////ImpossibleSituation("getUserIdByToken returned null but token is valid")
                 .thenCompose { userId -> isChannelNameExistsFuture(channel, userId) }
                 .thenCompose { (userId, isChannelNameExists) ->
                     if (!isChannelNameExists) // channel does not exist
@@ -128,62 +128,49 @@ class CourseAppImpl
                 }
     }
 
-    private fun isChannelNameExistsFuture(channel: String, userId: Long): CompletableFuture<Pair<Long, Boolean>> =
-            channelManager.isChannelNameExists(channel)
-                    .thenApply { isChannelNameExists -> Pair(userId, isChannelNameExists) }
 
-    private fun increaseNumberOfActiveMembersInChannelForLoggedInUser(userId: Long, channelId: Long): CompletableFuture<Unit> {
-        return userManager.getUserStatus(userId)
-                .thenApply { it == IUserManager.LoginStatus.IN }
-                .thenCompose {
-                    if (it) channelManager.increaseNumberOfActiveMembersInChannelBy(channelId)
-                    else ImmediateFuture { Unit }
-                }
-                .exceptionally { /* if user try to join again, its ok */ }
-    }
 
-    private fun addMemberToChannelFuture(channelId: Long, userId: Long) =
-            channelManager.addMemberToChannel(channelId, userId).thenApply { Pair(channelId, userId) }
-
-    private fun addChannelToUserFuture(userId: Long, channelId: Long): CompletableFuture<Pair<Long, Long>>? {
-        return userManager.addChannelToUser(userId, channelId)
-                .exceptionally { /* if user try to join again, its ok */ }
-                .thenApply { Pair(channelId, userId) }
-    }
-
-    private fun validateUserIsAdminFuture(userId: Long): CompletableFuture<Unit> {
-        return userManager.getUserPrivilege(userId)
-                .thenApply {
-                    if (it != IUserManager.PrivilegeLevel.ADMIN)
-                        throw UserNotAuthorizedException()
+    override fun channelPart(token: String, channel: String) :CompletableFuture<Unit> {
+        return validateTokenFuture(token)
+                .thenCompose { channelManager.isChannelNameExists(channel) }
+                .thenApply { if(!it)  throw NoSuchEntityException() }
+                .thenCompose { tokenManager.getUserIdByToken(token) }
+                .thenApply { it!! } //ImpossibleSituation("getUserIdByToken returned null but token is valid")
+                .thenCompose { userId-> channelManager.getChannelIdByName(channel).thenApply { Pair(userId,it) } }
+                .thenCompose { (userId,channelId)-> validateUserMemberExistsFuture(userId, channelId) }
+                .thenCompose {(userId,channelId) -> removeUserFromChannelFuture(channelId, userId)
+                }.thenCompose { (userId,channelId)->
+                    decreaseNumberOfActiveMembersInChannelForLoggedInUser(userId, channelId)
+                            .thenCompose {  removeChannelWhenEmptyFuture(channelId)}
                 }
     }
 
-    private fun createChannelAndMakeUserOperatorFuture(channel: String, userId: Long): CompletableFuture<Pair<Long, Long>> {
-        return channelManager.addChannel(channel)
-                .thenCompose { cid ->
-                    channelManager.addOperatorToChannel(cid, userId)
-                            .thenApply { cid }
-                }.thenApply { channelId -> Pair(channelId, userId) }
+    private fun removeUserFromChannelFuture(channelId: Long, userId: Long): CompletableFuture<Pair<Long, Long>> {
+        val removeMemberFuture = channelManager.removeMemberFromChannel(channelId, userId)
+        val removeOperatorFuture = channelManager.removeOperatorFromChannel(channelId, userId)
+        return Future.allAsList(listOf(removeMemberFuture, removeOperatorFuture)).thenApply { Pair(userId, channelId) }
     }
 
-    override fun channelPart(token: String, channel: String) {
-        if (!tokenManager.isTokenValid(token)) throw InvalidTokenException()
-        if (!channelManager.isChannelNameExists(channel)) throw NoSuchEntityException()
-        val userId = tokenManager.getUserIdByToken(token)
-                ?: throw ImpossibleSituation("getUserIdByToken returned null but token is valid")
-        val channelId = channelManager.getChannelIdByName(channel)
-        if (!isUserMember(userId, channelId)) throw NoSuchEntityException()
-        channelManager.removeMemberFromChannel(channelId, userId)
-        channelManager.removeOperatorFromChannel(channelId, userId)
-        userManager.removeChannelFromUser(userId, channelId) // should not throw!!
-        if (userManager.getUserStatus(userId) == IUserManager.LoginStatus.IN) {
-            channelManager.decreaseNumberOfActiveMembersInChannelBy(channelId)
-        }
-        if (channelManager.getNumberOfMembersInChannel(channelId) == 0L) {
-            channelManager.removeChannel(channelId)
+    private fun decreaseNumberOfActiveMembersInChannelForLoggedInUser(userId: Long, channelId: Long): CompletableFuture<Unit> {
+       return userManager.getUserStatus(userId).thenCompose {
+            if (it == IUserManager.LoginStatus.IN)
+                channelManager.decreaseNumberOfActiveMembersInChannelBy(channelId)
+            else
+                ImmediateFuture { Unit }
         }
     }
+
+    private fun removeChannelWhenEmptyFuture(channelId: Long): CompletableFuture<Unit> {
+        return channelManager.getNumberOfMembersInChannel(channelId).thenCompose {
+            if (it == 0L)
+                channelManager.removeChannel(channelId)
+            else
+                ImmediateFuture { Unit }
+        }
+    }
+
+    private fun validateUserMemberExistsFuture(userId: Long, channelId: Long) =
+            isUserMember(userId, channelId).thenApply { if (!it) throw NoSuchEntityException() else Pair(userId, channelId) }
 
     override fun channelMakeOperator(token: String, channel: String, username: String) {
         val (initiatorUserId, channelId) = preValidations(token, channel)
@@ -247,6 +234,47 @@ class CourseAppImpl
     class ImpossibleSituation(message: String? = null, cause: Throwable? = null) : Exception(message, cause)
 
     /** PRIVATES **/
+
+    private fun isChannelNameExistsFuture(channel: String, userId: Long): CompletableFuture<Pair<Long, Boolean>> =
+            channelManager.isChannelNameExists(channel)
+                    .thenApply { isChannelNameExists -> Pair(userId, isChannelNameExists) }
+
+    private fun increaseNumberOfActiveMembersInChannelForLoggedInUser(userId: Long, channelId: Long): CompletableFuture<Unit> {
+        return userManager.getUserStatus(userId)
+                .thenApply { it == IUserManager.LoginStatus.IN }
+                .thenCompose {
+                    if (it) channelManager.increaseNumberOfActiveMembersInChannelBy(channelId)
+                    else ImmediateFuture { Unit }
+                }
+                .exceptionally { /* if user try to join again, its ok */ }
+    }
+
+    private fun addMemberToChannelFuture(channelId: Long, userId: Long) =
+            channelManager.addMemberToChannel(channelId, userId).thenApply { Pair(channelId, userId) }
+
+    private fun addChannelToUserFuture(userId: Long, channelId: Long): CompletableFuture<Pair<Long, Long>>? {
+        return userManager.addChannelToUser(userId, channelId)
+                .exceptionally { /* if user try to join again, its ok */ }
+                .thenApply { Pair(channelId, userId) }
+    }
+
+    private fun validateUserIsAdminFuture(userId: Long): CompletableFuture<Unit> {
+        return userManager.getUserPrivilege(userId)
+                .thenApply {
+                    if (it != IUserManager.PrivilegeLevel.ADMIN)
+                        throw UserNotAuthorizedException()
+                }
+    }
+
+    private fun createChannelAndMakeUserOperatorFuture(channel: String, userId: Long): CompletableFuture<Pair<Long, Long>> {
+        return channelManager.addChannel(channel)
+                .thenCompose { cid ->
+                    channelManager.addOperatorToChannel(cid, userId)
+                            .thenApply { cid }
+                }.thenApply { channelId -> Pair(channelId, userId) }
+    }
+
+
     private fun updateUserStatusInChannels(userId: Long, newStatus: IUserManager.LoginStatus): CompletableFuture<Unit> {
         val channelsList = userManager.getChannelListOfUser(userId)
         for (channelId in channelsList) {
@@ -275,11 +303,11 @@ class CourseAppImpl
         return BigInteger(positiveNumberSign, hashFunc.digest(this.toByteArray())).toString(numberBase).padStart(32, '0')
     }
 
-    private fun isUserOperator(userId: Long, channelId: Long): Boolean {
-        return channelManager.getChannelOperatorsList(channelId).contains(userId)
+    private fun isUserOperator(userId: Long, channelId: Long): CompletableFuture<Boolean> {
+        return channelManager.getChannelOperatorsList(channelId).thenApply { it.contains(userId) }
     }
 
-    private fun isUserMember(userId: Long, channelId: Long): Boolean {
-        return channelManager.getChannelMembersList(channelId).contains(userId)
+    private fun isUserMember(userId: Long, channelId: Long): CompletableFuture<Boolean> {
+        return channelManager.getChannelMembersList(channelId).thenApply { it.contains(userId) }
     }
 }
