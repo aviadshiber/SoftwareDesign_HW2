@@ -2,14 +2,13 @@ package il.ac.technion.cs.softwaredesign
 
 import il.ac.technion.cs.softwaredesign.ALGORITHEMS.HASH_ALGORITHM
 import il.ac.technion.cs.softwaredesign.exceptions.*
+import il.ac.technion.cs.softwaredesign.messages.Message
 import il.ac.technion.cs.softwaredesign.storage.api.IChannelManager
 import il.ac.technion.cs.softwaredesign.storage.api.ITokenManager
 import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
 import io.github.vjames19.futures.jdk8.Future
 import io.github.vjames19.futures.jdk8.ImmediateFuture
 import io.github.vjames19.futures.jdk8.recoverWith
-import java.lang.Exception
-import java.lang.IllegalArgumentException
 import java.math.BigInteger
 import java.security.MessageDigest
 import java.util.concurrent.CompletableFuture
@@ -20,6 +19,7 @@ class CourseAppImpl
 @Inject constructor(private val tokenManager: ITokenManager,
                     private val userManager: IUserManager,
                     private val channelManager: IChannelManager) : CourseApp {
+
 
     internal companion object {
         val regex: Regex = Regex("#[#_A-Za-z0-9]*")
@@ -203,11 +203,7 @@ class CourseAppImpl
     }
 
     override fun isUserInChannel(token: String, channel: String, username: String): CompletableFuture<Boolean?> {
-        return preValidations(token, channel)
-                .thenCompose { (initiatorUserId, channelId) -> userManager.getUserPrivilege(initiatorUserId).thenApply { Triple(initiatorUserId, channelId, it) } }
-                .thenCompose { (initiatorUserId, channelId, userPrivilege) ->
-                    validateUserIsAdminOrMemberOfChannel(userPrivilege, initiatorUserId, channelId)
-                }
+        return validateUserPrivilegeOnChannelFuture(token, channel)
                 .thenCompose { channelId -> userManager.getUserId(username).thenApply { Pair(it, channelId) } }
                 .thenCompose<Boolean?> { (userId, channelId) ->
                     if (userId == null)
@@ -219,25 +215,53 @@ class CourseAppImpl
     }
 
 
+
     override fun numberOfActiveUsersInChannel(token: String, channel: String): CompletableFuture<Long> {
-        val (initiatorUserId, channelId) = preValidations(token, channel)
-        val isUserAdmin = userManager.getUserPrivilege(initiatorUserId) == IUserManager.PrivilegeLevel.ADMIN
-        if (!isUserAdmin && !isUserMember(initiatorUserId, channelId)) throw UserNotAuthorizedException()
-        return channelManager.getNumberOfActiveMembersInChannel(channelId)
+        return validateUserPrivilegeOnChannelFuture(token, channel)
+                .thenCompose {channelId-> channelManager.getNumberOfActiveMembersInChannel(channelId) }
     }
 
-    override fun numberOfTotalUsersInChannel(token: String, channel: String): Long {
-        val (initiatorUserId, channelId) = preValidations(token, channel)
-        val isUserAdmin = userManager.getUserPrivilege(initiatorUserId) == IUserManager.PrivilegeLevel.ADMIN
-        if (!isUserAdmin && !isUserMember(initiatorUserId, channelId)) throw UserNotAuthorizedException()
-        return channelManager.getNumberOfMembersInChannel(channelId)
+    override fun numberOfTotalUsersInChannel(token: String, channel: String): CompletableFuture<Long> {
+        return validateUserPrivilegeOnChannelFuture(token, channel).
+                thenCompose { channelId->   channelManager.getNumberOfMembersInChannel(channelId)}
     }
 
-    /** TODO: REMOVE/REPLACE/UNUSE THIS CLASS IN BEFORE SUBMISSION **/
-    class ImpossibleSituation(message: String? = null, cause: Throwable? = null) : Exception(message, cause)
+    override fun addListener(token: String, callback: ListenerCallback): CompletableFuture<Unit> {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun removeListener(token: String, callback: ListenerCallback): CompletableFuture<Unit> {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun channelSend(token: String, channel: String, message: Message): CompletableFuture<Unit> {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun broadcast(token: String, message: Message): CompletableFuture<Unit> {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun privateSend(token: String, user: String, message: Message): CompletableFuture<Unit> {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun fetchMessage(token: String, id: Long): CompletableFuture<Pair<String, Message>> {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
 
     /** PRIVATES **/
 
+    private fun validateUserPrivilegeOnChannelFuture(token: String, channel: String): CompletableFuture<Long> {
+        return preValidations(token, channel)
+                .thenCompose { (initiatorUserId, channelId) ->
+                    userManager.getUserPrivilege(initiatorUserId)
+                            .thenApply { Triple(initiatorUserId, channelId, it) }
+                }
+                .thenCompose { (initiatorUserId, channelId, userPrivilege) ->
+                    validateUserIsAdminOrMemberOfChannel(userPrivilege, initiatorUserId, channelId)
+                }
+    }
 
     private fun validateUserIsAdminOrMemberOfChannel(privilege: IUserManager.PrivilegeLevel, initiatorUserId: Long, channelId: Long): CompletableFuture<Long> {
         return if (privilege != IUserManager.PrivilegeLevel.ADMIN)
@@ -327,15 +351,18 @@ class CourseAppImpl
 
 
     private fun updateUserStatusInChannels(userId: Long, newStatus: IUserManager.LoginStatus): CompletableFuture<Unit> {
-        val channelsList = userManager.getChannelListOfUser(userId)
-        for (channelId in channelsList) {
-            if (newStatus == IUserManager.LoginStatus.IN)
-                channelManager.increaseNumberOfActiveMembersInChannelBy(channelId)
-            else {
-                channelManager.decreaseNumberOfActiveMembersInChannelBy(channelId)
-                channelManager.removeOperatorFromChannel(channelId, userId)
+        return userManager.getChannelListOfUser(userId).thenCompose {
+            list->
+            if(newStatus==IUserManager.LoginStatus.IN){
+                list.map { channelId-> channelManager.increaseNumberOfActiveMembersInChannelBy(channelId)  }
+                        .reduce { acc, completableFuture -> acc.thenCompose {completableFuture  } }
+            }else{
+                list.map { channelId-> channelManager.decreaseNumberOfActiveMembersInChannelBy(channelId)
+                        .thenCompose {  channelManager.removeOperatorFromChannel(channelId, userId) }
+                     }.reduce { acc, completableFuture -> acc.thenCompose {completableFuture  } }
             }
         }
+
     }
 
     private fun preValidations(token: String, channel: String): CompletableFuture<Pair<Long, Long>> {
