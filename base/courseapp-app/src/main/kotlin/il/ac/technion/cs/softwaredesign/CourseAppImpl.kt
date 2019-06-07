@@ -113,10 +113,7 @@ class CourseAppImpl
                 .thenApply { regex matches channel }.thenApply { if (!it) throw NameFormatException() }
                 .thenCompose { tokenManager.getUserIdByToken(token) }
                 .thenApply { it!! }
-                .thenCompose { userId ->
-                    channelManager.isChannelNameExists(channel)
-                            .thenApply { isChannelNameExists -> Pair(userId, isChannelNameExists) }
-                }
+                .thenCompose { userId -> isChannelNameExistsFuture(channel, userId) }
                 .thenCompose { (userId, isChannelNameExists) ->
                     if (!isChannelNameExists) // channel does not exist
                         validateUserIsAdminFuture(userId)
@@ -127,11 +124,15 @@ class CourseAppImpl
                 .thenCompose { (channelId, userId) -> addChannelToUserFuture(userId, channelId) }
                 .thenCompose { (channelId, userId) -> addMemberToChannelFuture(channelId, userId) }
                 .thenCompose { (channelId, userId) ->
-                    increaseNumberOfActiveMembersInChannelForUser(userId, channelId)
+                    increaseNumberOfActiveMembersInChannelForLoggedInUser(userId, channelId)
                 }
     }
 
-    private fun increaseNumberOfActiveMembersInChannelForUser(userId: Long, channelId: Long): CompletableFuture<Unit> {
+    private fun isChannelNameExistsFuture(channel: String, userId: Long): CompletableFuture<Pair<Long, Boolean>> =
+            channelManager.isChannelNameExists(channel)
+                    .thenApply { isChannelNameExists -> Pair(userId, isChannelNameExists) }
+
+    private fun increaseNumberOfActiveMembersInChannelForLoggedInUser(userId: Long, channelId: Long): CompletableFuture<Unit> {
         return userManager.getUserStatus(userId)
                 .thenApply { it == IUserManager.LoginStatus.IN }
                 .thenCompose {
