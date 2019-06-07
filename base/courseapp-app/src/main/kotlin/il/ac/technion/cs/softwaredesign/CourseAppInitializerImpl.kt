@@ -13,7 +13,7 @@ import javax.inject.Inject
 class CourseAppInitializerImpl
 @Inject constructor(@StatisticsStorage private val statisticsStorage: SecureStorage,
                     @UsersByChannelCountStorage private val usersByChannelStorage: SecureStorage,
-                    @ChannelByUserCountStorage private val channelByUserCoundStorage: SecureStorage,
+                    @ChannelByUserCountStorage private val channelByUserCountStorage: SecureStorage,
                     @ChannelByActiveUserCountStorage private val channelByActiveUserCountStorage: SecureStorage
 ) : CourseAppInitializer {
 
@@ -23,18 +23,15 @@ class CourseAppInitializerImpl
     }
 
     private fun initStatistics() {
-        statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_USERS.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL))
-        statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL))
-        statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_CHANNELS.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL))
-        statisticsStorage.write(STATISTICS_KEYS.MAX_CHANNEL_INDEX.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL))
-
+        statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_USERS.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
+        statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
+        statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_CHANNELS.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
+        statisticsStorage.write(STATISTICS_KEYS.MAX_CHANNEL_INDEX.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
     }
 
     private fun initTrees() {
-        usersByChannelStorage.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX))
-        channelByUserCoundStorage.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX))
-        channelByActiveUserCountStorage.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX))
+        usersByChannelStorage.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX)).get()
+        channelByUserCountStorage.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX)).get()
+        channelByActiveUserCountStorage.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX)).get()
     }
-
-
 }
