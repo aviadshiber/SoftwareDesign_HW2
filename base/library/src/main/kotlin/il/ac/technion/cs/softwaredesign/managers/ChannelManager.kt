@@ -166,9 +166,6 @@ class ChannelManager
                 .thenCompose { list-> removeOperatorFromListFuture(list, operatorId, channelId) }
     }
 
-
-
-
     /** CHANNEL COMPLEX STATISTICS **/
     override fun getTop10ChannelsByUsersCount(): CompletableFuture<List<String>> {
         return getTop10FromTree(TREE_CHANNELS_BY_USERS_COUNT)
@@ -182,8 +179,13 @@ class ChannelManager
     /**
      * the method validates the channel id and return the channelId for continues use
      */
-    private fun validateChannelIdFuture(channelId: Long) = isChannelValid(channelId = channelId)
-            .thenApply { if (!it) throw IllegalArgumentException("channel id is not valid"); else channelId}
+    private fun validateChannelIdFuture(channelId: Long): CompletableFuture<Long> {
+        return isChannelValid(channelId = channelId)
+                .thenApply {
+                    if (!it) throw IllegalArgumentException("channel id is not valid")
+                    else channelId
+                }
+    }
 
     // channel name exists if and only if it is mapped to a VALID channel id, i.e. channel id != CHANNEL_INVALID_ID
     // and its id_name is not mapped to CHANNEL_INVALID_NAME
@@ -216,9 +218,9 @@ class ChannelManager
     }
 
     private fun invalidateChannelFuture(channelId: Long) :CompletableFuture<Unit> {
-            return getChannelNameById(channelId)
-                    .thenCompose { channelName-> invalidateChannelFuture(channelId, channelName) }
-                    .exceptionally {  }
+        return getChannelNameById(channelId)
+                .thenCompose { channelName-> invalidateChannelFuture(channelId, channelName) }
+                .exceptionally {  }
 
     }
 
@@ -281,15 +283,15 @@ class ChannelManager
     }
 
     private fun buildTop10FromHigherToLowerListFromTree(higherChannelIndex: Long, lowestChannelIndex: Long, tree: SecureAVLTree<CountIdKey>): CompletableFuture<MutableList<String>> {
-            return if(higherChannelIndex<lowestChannelIndex){
-                ImmediateFuture{ mutableListOf<String>()}
-            }else{
-                //TODO: fix after tree refactoring (remove Future init)
-                val channelIdFuture = ImmediateFuture { tree.select(lowestChannelIndex).getId() }
-                val channelNameFuture=channelIdFuture.thenCompose { getChannelNameById(it) }
-                buildTop10FromHigherToLowerListFromTree(higherChannelIndex,lowestChannelIndex+1,tree)
-                        .thenCompose { list-> channelNameFuture.thenApply { name-> list.add(name); list } }
-            }
+        return if(higherChannelIndex<lowestChannelIndex){
+            ImmediateFuture{ mutableListOf<String>()}
+        }else{
+            //TODO: fix after tree refactoring (remove Future init)
+            val channelIdFuture = ImmediateFuture { tree.select(lowestChannelIndex).getId() }
+            val channelNameFuture=channelIdFuture.thenCompose { getChannelNameById(it) }
+            buildTop10FromHigherToLowerListFromTree(higherChannelIndex,lowestChannelIndex+1,tree)
+                    .thenCompose { list-> channelNameFuture.thenApply { name-> list.add(name); list } }
+        }
     }
 
     private fun validateMemberInList(it: List<Long>, memberId: Long): List<Long> {

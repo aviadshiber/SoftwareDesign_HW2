@@ -32,7 +32,6 @@ class TokenManager @Inject constructor(private val userStorage: IUserStorage) : 
         }
     }
 
-
     override fun invalidateUserToken(token: String):CompletableFuture<Unit> {
         return getUserIdByToken(token).thenApply { it ?: throw java.lang.IllegalArgumentException("token does not exist") }
                 .thenCompose { userStorage.setUserIdToToken(token, INVALID_USER_ID)  }

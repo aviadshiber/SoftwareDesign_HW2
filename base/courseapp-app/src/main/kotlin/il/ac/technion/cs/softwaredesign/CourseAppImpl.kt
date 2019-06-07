@@ -8,7 +8,7 @@ import il.ac.technion.cs.softwaredesign.storage.api.ITokenManager
 import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
 import io.github.vjames19.futures.jdk8.Future
 import io.github.vjames19.futures.jdk8.ImmediateFuture
-import io.github.vjames19.futures.jdk8.recoverWith
+import io.github.vjames19.futures.jdk8.recover
 import java.math.BigInteger
 import java.security.MessageDigest
 import java.util.concurrent.CompletableFuture
@@ -69,7 +69,11 @@ class CourseAppImpl
     override fun logout(token: String): CompletableFuture<Unit> {
         return tokenManager.getUserIdByToken(token).thenApply { it ?: throw InvalidTokenException() }
                 .thenCompose { userId -> tokenManager.invalidateUserToken(token).thenApply { userId } }
-                .recoverWith { if (it is IllegalArgumentException) throw InvalidTokenException() else throw it }
+                .recover {
+                    if (it is IllegalArgumentException)
+                        throw InvalidTokenException()
+                    else throw it
+                }
                 .thenCompose { userId -> updateToLogoutFuture(userId) }.thenApply { Unit }
     }
 
@@ -82,13 +86,13 @@ class CourseAppImpl
     override fun isUserLoggedIn(token: String, username: String): CompletableFuture<Boolean?> {
         return validateTokenFuture(token)
                 .thenCompose { userManager.getUserId(username) }
-                .thenCompose {
+                .thenCompose<Boolean?> {
                     if (it != null)
                         userManager.getUserStatus(it).thenApply { status ->
                             status == IUserManager.LoginStatus.IN
                         }
                     else
-                        null
+                        ImmediateFuture { null }
                 }
     }
 
