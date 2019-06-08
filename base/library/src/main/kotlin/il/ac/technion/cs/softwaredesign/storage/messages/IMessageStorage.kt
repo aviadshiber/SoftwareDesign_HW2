@@ -12,4 +12,7 @@ interface IMessageStorage {
 
     fun getTimeById(messageId: Long, property: String) : CompletableFuture<LocalDateTime?>
     fun setTimeToId(messageId: Long, property: String, time: LocalDateTime): CompletableFuture<Unit>
+
+    fun getStringById(messageId: Long, property: String) : CompletableFuture<String?>
+    fun setStringToId(messageId: Long, property: String, value: String): CompletableFuture<Unit>
 }

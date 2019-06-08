@@ -41,4 +41,15 @@ class SecureMessageStorage @Inject constructor(@MessageDetailsStorage private va
         val key = createPropertyKey(messageId, property)
         return messageDetailsStorage.write(key, ConversionUtils.localDateTimeToBytes(time))
     }
+
+    override fun getStringById(messageId: Long, property: String): CompletableFuture<String?> {
+        val key = createPropertyKey(messageId, property)
+        val value = messageDetailsStorage.read(key)
+        return value.thenApply { if (it == null) null else String(it) }
+    }
+
+    override fun setStringToId(messageId: Long, property: String, value: String): CompletableFuture<Unit> {
+        val key = createPropertyKey(messageId, property)
+        return messageDetailsStorage.write(key, value.toByteArray())
+    }
 }

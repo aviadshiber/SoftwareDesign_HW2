@@ -32,7 +32,7 @@ class MessageManager @Inject constructor(
     }
 
     override fun addMessage(id: Long, mediaType: Long, content: ByteArray, created: LocalDateTime,
-                            messageType: IMessageManager.MessageType,
+                            messageType: IMessageManager.MessageType, source: String,
                             startCounter: Long?, channelId: Long?, destUserId: Long?): CompletableFuture<Unit> {
         return isMessageIdExists(id).thenCompose {
             if (it) throw IllegalArgumentException("message id already exists")
@@ -41,7 +41,8 @@ class MessageManager @Inject constructor(
             val createsSetter = messageStorage.setTimeToId(id, MANAGERS_CONSTS.MESSAGE_CREATED_TIME, created)
             // no need to set received time because it is null
             val messageTypeSetter = messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_TYPE, messageType.ordinal.toLong())
-            val ls = mutableListOf(mediaTypeSetter, contentSetter, createsSetter, messageTypeSetter)
+            val sourceSetter = messageStorage.setStringToId(id, MANAGERS_CONSTS.MESSAGE_SOURCE, source)
+            val ls = mutableListOf(mediaTypeSetter, contentSetter, createsSetter, messageTypeSetter, sourceSetter)
             if (messageType == IMessageManager.MessageType.BROADCAST && startCounter != null) {
                 val counterSetter = messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_COUNTER, startCounter)
                 ls.add(counterSetter)
@@ -86,6 +87,11 @@ class MessageManager @Inject constructor(
         return messageStorage.getLongById(msgId, MANAGERS_CONSTS.MESSAGE_TYPE)
                 .thenApply { it ?: throw IllegalArgumentException("message id does not exist") }
                 .thenApply { IMessageManager.MessageType.values()[it.toInt()] }
+    }
+
+    override fun getMessageSource(msgId: Long): CompletableFuture<String> {
+        return messageStorage.getStringById(msgId, MANAGERS_CONSTS.MESSAGE_SOURCE)
+                .thenApply { it ?: throw IllegalArgumentException("message id does not exist") }
     }
 
     override fun getMessageCounter(msgId: Long): CompletableFuture<Long> {

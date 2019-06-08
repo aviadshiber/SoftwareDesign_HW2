@@ -2,7 +2,9 @@ package il.ac.technion.cs.softwaredesign
 
 import il.ac.technion.cs.softwaredesign.ALGORITHEMS.HASH_ALGORITHM
 import il.ac.technion.cs.softwaredesign.exceptions.*
+import il.ac.technion.cs.softwaredesign.messages.MediaType
 import il.ac.technion.cs.softwaredesign.messages.Message
+import il.ac.technion.cs.softwaredesign.messages.MessageImpl
 import il.ac.technion.cs.softwaredesign.storage.api.IChannelManager
 import il.ac.technion.cs.softwaredesign.storage.api.IMessageManager
 import il.ac.technion.cs.softwaredesign.storage.api.ITokenManager
@@ -180,40 +182,50 @@ class CourseAppImpl
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    /**
-     * Returns the message identified by [id], if it exists.
-     *
-     * This method is only useful for messages sent to channels.
-     *
-     * This is a *read* command.
-     *
-     * @throws InvalidTokenException If the auth [token] is invalid.
-     * @throws NoSuchEntityException If [id] does not exist or is not a channel message.
-     * @throws UserNotAuthorizedException If [id] identifies a message in a channel that the user identified by [token]
-     * is not a member of.
-     * @return The message identified by [id] along with its source.
-     */
     override fun fetchMessage(token: String, id: Long): CompletableFuture<Pair<String, Message>> {
-//        validateTokenFuture
-//                .thenCompose { messageManager.isMessageIdExists(id) }
-//                .thenCompose {
-//                    if (!it) throw NoSuchEntityException()
-//                    else {
-//                        messageManager.getMessageType(id)
-//                    }
-//                }.thenCompose {
-//                    if (it != IMessageManager.MessageType.CHANNEL) throw NoSuchEntityException()
-//                    else {
-//                        tokenManager.getUserIdByToken(token)
-//                    }
-//                }.thenCompose {
-//                    userManager.chan
-//                }
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return validateTokenFuture(token)
+                .thenCompose { messageManager.isMessageIdExists(id) }
+                .thenCompose {
+                    if (!it) throw NoSuchEntityException()
+                    else {
+                        messageManager.getMessageType(id)
+                    }
+                }.thenCompose {
+                    if (it != IMessageManager.MessageType.CHANNEL) throw NoSuchEntityException()
+                    else {
+                        messageManager.getMessageChannelId(id)
+                    }
+                }.thenCompose { channelId ->
+                    tokenManager.getUserIdByToken(token).thenApply { userId->Pair<Long, Long>(userId!!, channelId) }
+                }.thenCompose { (userId, channelId) ->
+                    isUserMember(userId, channelId)
+                }.thenCompose {
+                    if (!it) throw UserNotAuthorizedException()
+                    else {
+                        buildMessage(id)
+                    }
+                }
     }
 
 
     /** PRIVATES **/
+
+    private fun buildMessage(msgId: Long): CompletableFuture<Pair<String, Message>> {
+        return messageManager.getMessageMediaType(msgId)
+                .thenApply {
+                    val message = MessageImpl()
+                    message.media = MediaType.values()[it.toInt()]
+                    message
+                }.thenCompose { message ->
+                    messageManager.getMessageContent(msgId).thenApply { content -> message.contents = content; message }
+                }.thenCompose { message ->
+                    messageManager.getMessageCreatedTime(msgId).thenApply { created -> message.created = created; message }
+                }.thenCompose { message ->
+                    messageManager.getMessageReceivedTime(msgId).thenApply { received -> message.received = received; message }
+                }.thenCompose { message ->
+                    messageManager.getMessageSource(msgId).thenApply { source -> Pair<String, Message>(source, message) }
+                }
+    }
 
     private fun loginFuture(userId: Long, hashedPassword: String): CompletableFuture<String> {
         return userManager.getUserPassword(userId).thenApply { validatedPassword(it, hashedPassword) }

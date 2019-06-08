@@ -30,6 +30,7 @@ interface IMessageManager {
      * @param content ByteArray, msg content
      * @param created LocalDateTime
      * @param messageType MessageType
+     * @param source source of the message
      * @param startCounter for broadcast messages only, initial number of users
      * @param channelId for channel messages only, the channel id of the message
      * @param destUserId for private messages only, the target user id
@@ -37,7 +38,7 @@ interface IMessageManager {
      * @return CompletableFuture<Unit>
      */
     fun addMessage(id: Long, mediaType: Long, content: ByteArray, created: LocalDateTime,
-                   messageType: MessageType,
+                   messageType: MessageType, source: String,
                    startCounter: Long? = null, channelId: Long? = null, destUserId: Long? = null): CompletableFuture<Unit>
 
     /** GETTERS & SETTERS **/
@@ -79,6 +80,14 @@ interface IMessageManager {
      * @return message type
      */
     fun getMessageType(msgId: Long): CompletableFuture<MessageType>
+
+    /**
+     * gets message source
+     * @param msgId message id
+     * @throws IllegalArgumentException throws if message id does not exist in the system
+     * @return message source
+     */
+    fun getMessageSource(msgId: Long): CompletableFuture<String>
 
     /**
      * gets message counter, i.e. number of users that hasn't been read the message, for BROADCAST messages only
