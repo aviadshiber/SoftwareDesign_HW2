@@ -161,6 +161,8 @@ class UserManager
                 }
     }
 
+
+    /** USER CHANNELS & PRIVATE MESSAGES **/
     override fun addMessageToUser(userId: Long, msgId: Long): CompletableFuture<Unit> {
         return isUserIdExists(userId).thenApply {
             if (!it) Unit
