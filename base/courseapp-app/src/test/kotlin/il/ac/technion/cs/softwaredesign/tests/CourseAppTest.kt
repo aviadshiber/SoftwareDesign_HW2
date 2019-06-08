@@ -5,11 +5,12 @@ import com.google.inject.Guice
 import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.present
-import il.ac.technion.cs.softwaredesign.*
+import il.ac.technion.cs.softwaredesign.CourseApp
+import il.ac.technion.cs.softwaredesign.CourseAppImpl
+import il.ac.technion.cs.softwaredesign.CourseAppInitializer
+import il.ac.technion.cs.softwaredesign.CourseAppStatistics
 import il.ac.technion.cs.softwaredesign.exceptions.*
-import io.github.vjames19.futures.jdk8.ImmediateFuture
 import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
@@ -41,7 +42,7 @@ class CourseAppTest{
         val username="gal"
         val password="gal_password"
                 courseApp.login(username, password)
-                        .thenCompose { courseApp.login("aviad","shiber!$75"); ImmediateFuture { it } }
+                        .thenCompose { token -> courseApp.login("aviad", "shiber!$75").thenApply { token } }
                         .thenCompose { courseApp.logout(it) }
                         .join()
 
@@ -55,7 +56,7 @@ class CourseAppTest{
         val username="gal"
         val password="gal_password"
         courseApp.login(username, password)
-                .thenCompose { courseApp.login("aviad","shiber!$75"); ImmediateFuture { it } }
+                .thenCompose { token -> courseApp.login("aviad", "shiber!$75").thenApply { token } }
                 .join()
 
         assertThrows<UserAlreadyLoggedInException> {
@@ -69,7 +70,7 @@ class CourseAppTest{
         val password="aviad_password"
         val ronToken = courseApp.login(username, password)
                 .thenCompose { courseApp.login("ron", password)}
-                .thenCompose { courseApp.logout(it); ImmediateFuture { it }}
+                .thenCompose { t -> courseApp.logout(t).thenApply { t } }
                 .join()
 
         assertThrows<InvalidTokenException> {
