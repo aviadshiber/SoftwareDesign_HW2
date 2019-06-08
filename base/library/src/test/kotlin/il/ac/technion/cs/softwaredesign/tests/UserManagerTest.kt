@@ -6,14 +6,13 @@ import com.google.inject.Guice
 import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.hasElement
-import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
 import il.ac.technion.cs.softwaredesign.storage.SecureStorageFactory
+import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
 import il.ac.technion.cs.softwaredesign.storage.statistics.IStatisticsStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS
 import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST
-import io.github.vjames19.futures.jdk8.Future
 import io.github.vjames19.futures.jdk8.ImmediateFuture
 import org.junit.jupiter.api.*
 import java.util.concurrent.CompletableFuture
@@ -41,10 +40,10 @@ class UserManagerTest {
     @Test
     fun `gets the user id from the system`() {
         val aviadID = userManager.addUser("aviad", "aviad_password")
-                .thenCompose { userManager.addUser("ron", "ron_password"); ImmediateFuture{it} }
+                .thenCompose { userManager.addUser("ron", "ron_password"); ImmediateFuture { it } }
                 .get()
 
-        assertThat(userManager.getUserId("aviad").get() , equalTo(aviadID))
+        assertThat(userManager.getUserId("aviad").get(), equalTo(aviadID))
     }
 
     @Test
@@ -59,7 +58,7 @@ class UserManagerTest {
     @Test
     fun `add user with as logged out`() {
         val aviadID = userManager.addUser("aviad", "aviad_password", IUserManager.LoginStatus.OUT)
-                .thenCompose { userManager.addUser("ron", "ron_password"); ImmediateFuture{it} }
+                .thenCompose { userManager.addUser("ron", "ron_password"); ImmediateFuture { it } }
                 .get()
 
         assertThat(userManager.getUserStatus(aviadID).get(), equalTo(IUserManager.LoginStatus.OUT))
@@ -68,7 +67,7 @@ class UserManagerTest {
     @Test
     fun `add user with with admin privilege`() {
         val aviadID = userManager.addUser("aviad", "aviad_password", privilege = IUserManager.PrivilegeLevel.ADMIN)
-                .thenCompose { userManager.addUser("ron", "ron_password"); ImmediateFuture{it} }
+                .thenCompose { userManager.addUser("ron", "ron_password"); ImmediateFuture { it } }
                 .get()
 
         assertThat(userManager.getUserPrivilege(aviadID).get(), equalTo(IUserManager.PrivilegeLevel.ADMIN))
@@ -79,16 +78,16 @@ class UserManagerTest {
         var aviadID: Long = -1L
         assertThat(
                 userManager.addUser("aviad", "aviad_password")
-                    .thenCompose { aviadID = it; userManager.getUserPrivilege(it) }
-                    .get(),
+                        .thenCompose { aviadID = it; userManager.getUserPrivilege(it) }
+                        .get(),
                 equalTo(IUserManager.PrivilegeLevel.USER)
         )
 
         assertThat(
                 userManager.addUser("ron", "ron_password")
-                    .thenCompose { userManager.updateUserPrivilege(aviadID, IUserManager.PrivilegeLevel.ADMIN) }
-                    .thenCompose { userManager.getUserPrivilege(aviadID)}
-                    .get(),
+                        .thenCompose { userManager.updateUserPrivilege(aviadID, IUserManager.PrivilegeLevel.ADMIN) }
+                        .thenCompose { userManager.getUserPrivilege(aviadID) }
+                        .get(),
                 equalTo(IUserManager.PrivilegeLevel.ADMIN)
         )
     }
@@ -106,7 +105,7 @@ class UserManagerTest {
         assertThat(
                 userManager.addUser("ron", "ron_password")
                         .thenCompose { userManager.updateUserStatus(aviadID, IUserManager.LoginStatus.OUT) }
-                        .thenCompose { userManager.getUserStatus(aviadID)}
+                        .thenCompose { userManager.getUserStatus(aviadID) }
                         .get(),
                 equalTo(IUserManager.LoginStatus.OUT)
         )
@@ -138,13 +137,8 @@ class UserManagerTest {
 
     @Test
     fun `is user id exist after he was added to the system`() {
-        var aviadID: Long = -1L
-        assertThat(
-                userManager.addUser("aviad", "aviad_password")
-                        .thenCompose { aviadID = it; userManager.isUserIdExists(aviadID)}
-                        .get(),
-                isTrue
-        )
+        val aviadID: Long = userManager.addUser("aviad", "aviad_password").get()
+        assertThat(userManager.isUserIdExists(aviadID).get(), isTrue)
         assertThat(userManager.isUserIdExists(1000L).get(), isFalse)
     }
 
@@ -152,7 +146,7 @@ class UserManagerTest {
     fun `getUserPassword after adding new user`() {
         assertThat(
                 userManager.addUser("aviad", "aviad_password")
-                        .thenCompose { userManager.getUserPassword(it)}
+                        .thenCompose { userManager.getUserPassword(it) }
                         .get(),
                 equalTo("aviad_password")
         )
@@ -167,51 +161,49 @@ class UserManagerTest {
 
     private fun addUserTo20Channels(): List<Long> {
         return addUserTo20ChannelsAndGetFuture()
-            .thenCompose { userManager.getChannelListOfUser(it) }
-            .get()
+                .thenCompose { userManager.getChannelListOfUser(it) }
+                .get()
     }
 
     private fun addUserTo20ChannelsAndGetFuture(): CompletableFuture<Long> {
-        var aviadID1 = -1L
         return userManager.addUser("aviad", "aviad_password")
-                .thenCompose { id -> aviadID1 = id; ImmediateFuture { id } }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 1L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 2L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 3L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 4L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 5L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 6L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 7L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 8L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 9L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 10L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 11L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 12L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 13L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 14L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 15L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 16L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 17L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 18L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 19L) }
-                .thenCompose { userManager.addChannelToUser(aviadID1, 20L) }
-                .thenApply { aviadID1 }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 1L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 2L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 3L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 4L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 5L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 6L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 7L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 8L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 9L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 10L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 11L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 12L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 13L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 14L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 15L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 16L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 17L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 18L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 19L).thenApply { aviadID1 } }
+                .thenCompose { aviadID1 -> userManager.addChannelToUser(aviadID1, 20L).thenApply { aviadID1 } }
+                .thenApply { it }
     }
 
     @Test
     fun `adding new channels to user and removing part of them validating that all channel exists`() {
-        var aviadID: Long = -1L
+        //var aviadID: Long = -1L
         val channelList = addUserTo20ChannelsAndGetFuture()
-                .thenCompose { aviadID = it; userManager.removeChannelFromUser(aviadID, 1L) }
-                .thenCompose { userManager.removeChannelFromUser(aviadID, 5L) }
-                .thenCompose { userManager.removeChannelFromUser(aviadID, 7L) }
-                .thenCompose { userManager.removeChannelFromUser(aviadID, 3L) }
-                .thenCompose { userManager.removeChannelFromUser(aviadID, 9L) }
-                .thenCompose { userManager.removeChannelFromUser(aviadID, 2L) }
-                .thenCompose { userManager.removeChannelFromUser(aviadID, 4L) }
-                .thenCompose { userManager.removeChannelFromUser(aviadID, 8L) }
-                .thenCompose { userManager.removeChannelFromUser(aviadID, 6L) }
-                .thenCompose { userManager.getChannelListOfUser(aviadID) }
+                .thenCompose { aviadID -> userManager.removeChannelFromUser(aviadID, 1L).thenApply { aviadID } }
+                .thenCompose { aviadID -> userManager.removeChannelFromUser(aviadID, 5L).thenApply { aviadID } }
+                .thenCompose { aviadID -> userManager.removeChannelFromUser(aviadID, 7L).thenApply { aviadID } }
+                .thenCompose { aviadID -> userManager.removeChannelFromUser(aviadID, 3L).thenApply { aviadID } }
+                .thenCompose { aviadID -> userManager.removeChannelFromUser(aviadID, 9L).thenApply { aviadID } }
+                .thenCompose { aviadID -> userManager.removeChannelFromUser(aviadID, 2L).thenApply { aviadID } }
+                .thenCompose { aviadID -> userManager.removeChannelFromUser(aviadID, 4L).thenApply { aviadID } }
+                .thenCompose { aviadID -> userManager.removeChannelFromUser(aviadID, 8L).thenApply { aviadID } }
+                .thenCompose { aviadID -> userManager.removeChannelFromUser(aviadID, 6L).thenApply { aviadID } }
+                .thenCompose { aviadID -> userManager.getChannelListOfUser(aviadID) }
                 .get()
         assertThat(channelList.size, equalTo(11))
     }
@@ -221,10 +213,10 @@ class UserManagerTest {
         assertThat(userManager.getTotalUsers().get(), equalTo(0L))
         assertThat(
                 userManager.addUser("ron", "ron_password")
-                    .thenCompose { userManager.addUser("aviad", "aviad_password") }
-                    .thenCompose { userManager.addUser("gal", "gal_password") }
-                    .thenCompose { userManager.getTotalUsers() }
-                    .get(),
+                        .thenCompose { userManager.addUser("aviad", "aviad_password") }
+                        .thenCompose { userManager.addUser("gal", "gal_password") }
+                        .thenCompose { userManager.getTotalUsers() }
+                        .get(),
                 equalTo(3L)
         )
     }
@@ -245,17 +237,10 @@ class UserManagerTest {
     @Test
     fun `after status update, loggedInUsers is valid`() {
         assertThat(userManager.getLoggedInUsers().get(), equalTo(0L))
-        var id1 = -1L
-        var id2 = -1L
-        var id3 = -1L
-        assertThat(
-                userManager.addUser("ron", "ron_password")
-                        .thenCompose { id1 = it; userManager.addUser("aviad", "aviad_password") }
-                        .thenCompose { id2 = it; userManager.addUser("gal", "gal_password") }
-                        .thenCompose { id3 = it; userManager.getLoggedInUsers() }
-                        .get(),
-                equalTo(3L)
-        )
+        val id1 = userManager.addUser("ron", "ron_password").get()
+        val id2 = userManager.addUser("aviad", "aviad_password").get()
+        val id3 = userManager.addUser("gal", "gal_password").get()
+        assertThat(userManager.getLoggedInUsers().get(), equalTo(3L))
 
         assertThat(
                 userManager.updateUserStatus(id1, IUserManager.LoginStatus.IN)
@@ -289,14 +274,9 @@ class UserManagerTest {
     }
 
     @Test
-    fun `after adding channel, list size has changed`(){
-        var id1 = -1L
-        assertThat(
-                userManager.addUser("ron", "ron_password")
-                        .thenCompose { id1 = it; userManager.getUserChannelListSize(id1) }
-                        .get(),
-                equalTo(0L)
-        )
+    fun `after adding channel, list size has changed`() {
+        val id1 = userManager.addUser("ron", "ron_password").get()
+        assertThat(userManager.getUserChannelListSize(id1).get(), equalTo(0L))
 
         assertThat(
                 userManager.addChannelToUser(id1, 123L)
@@ -311,14 +291,9 @@ class UserManagerTest {
     }
 
     @Test
-    fun `after removing channel, list size has changed`(){
-        var id1 = -1L
-        assertThat(
-                userManager.addUser("ron", "ron_password")
-                        .thenCompose { id1 = it; userManager.getUserChannelListSize(id1) }
-                        .get(),
-                equalTo(0L)
-        )
+    fun `after removing channel, list size has changed`() {
+        val id1 = userManager.addUser("ron", "ron_password").get()
+        assertThat(userManager.getUserChannelListSize(id1).get(), equalTo(0L))
 
         assertThat(
                 userManager.addChannelToUser(id1, 123L)
@@ -333,11 +308,10 @@ class UserManagerTest {
     }
 
     @Test
-    fun `add the same element twice throws and list size is valid`(){
-        var id1 = -1L
+    fun `add the same element twice throws and list size is valid`() {
+        val id1 = userManager.addUser("ron", "ron_password").get()
         assertThrows<IllegalAccessException> {
-            userManager.addUser("ron", "ron_password")
-                    .thenCompose { id1 = it; userManager.addChannelToUser(id1, 123L) }
+            userManager.addChannelToUser(id1, 123L)
                     .thenCompose { userManager.addChannelToUser(id1, 123L) }
                     .joinException()
         }
@@ -346,7 +320,7 @@ class UserManagerTest {
     }
 
     @Test
-    fun `remove the same element twice throws and list size is valid`(){
+    fun `remove the same element twice throws and list size is valid`() {
         var id1 = -1L
         assertThrows<IllegalAccessException> {
             userManager.addUser("ron", "ron_password")
@@ -361,51 +335,51 @@ class UserManagerTest {
 
     @Test
     fun `test get top 10`() {
-        val ids = (1..41).map{ it.toLong() }
+        val ids = (1..41).map { it.toLong() }
         val future = add40Users().thenCompose { add40ChannelsToUsers() }
 
         val best = mutableListOf<Long>(ids[14], ids[37], ids[5], ids[7], ids[20], ids[12], ids[18], ids[33], ids[8], ids[0])
 
-        val future0 = future.thenCompose { userManager.addChannelToUser(best[0],5000L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5001L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5002L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5003L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5004L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5005L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5006L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5007L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5008L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5009L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5010L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5011L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5012L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5013L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5014L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5015L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5016L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5017L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5018L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5019L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5020L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5021L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5022L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5023L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5024L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5025L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5026L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5027L) }
-                .thenCompose { userManager.addChannelToUser(best[0],5028L) }.get()
+        future.thenCompose { userManager.addChannelToUser(best[0], 5000L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5001L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5002L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5003L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5004L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5005L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5006L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5007L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5008L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5009L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5010L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5011L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5012L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5013L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5014L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5015L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5016L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5017L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5018L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5019L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5020L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5021L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5022L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5023L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5024L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5025L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5026L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5027L) }
+                .thenCompose { userManager.addChannelToUser(best[0], 5028L) }.get()
 
 //        (5000..5028).forEach { userManager.addChannelToUser(best[0],it.toLong()).get() }
-        (5000..5022).forEach { userManager.addChannelToUser(best[1],it.toLong()).get() }
-        (5000..5020).forEach { userManager.addChannelToUser(best[2],it.toLong()).get() }
-        (5000..5019).forEach { userManager.addChannelToUser(best[3],it.toLong()).get() }
-        (5000..5017).forEach { userManager.addChannelToUser(best[4],it.toLong()).get() }
-        (5000..5012).forEach { userManager.addChannelToUser(best[5],it.toLong()).get() }
-        (5000..5009).forEach { userManager.addChannelToUser(best[6],it.toLong()).get() }
-        (5000..5006).forEach { userManager.addChannelToUser(best[7],it.toLong()).get() }
-        (5000..5004).forEach { userManager.addChannelToUser(best[8],it.toLong()).get() }
-        (5000..5001).forEach { userManager.addChannelToUser(best[9],it.toLong()).get() }
+        (5000..5022).forEach { userManager.addChannelToUser(best[1], it.toLong()).get() }
+        (5000..5020).forEach { userManager.addChannelToUser(best[2], it.toLong()).get() }
+        (5000..5019).forEach { userManager.addChannelToUser(best[3], it.toLong()).get() }
+        (5000..5017).forEach { userManager.addChannelToUser(best[4], it.toLong()).get() }
+        (5000..5012).forEach { userManager.addChannelToUser(best[5], it.toLong()).get() }
+        (5000..5009).forEach { userManager.addChannelToUser(best[6], it.toLong()).get() }
+        (5000..5006).forEach { userManager.addChannelToUser(best[7], it.toLong()).get() }
+        (5000..5004).forEach { userManager.addChannelToUser(best[8], it.toLong()).get() }
+        (5000..5001).forEach { userManager.addChannelToUser(best[9], it.toLong()).get() }
 
         val output = userManager.getTop10UsersByChannelsCount().get()
         for ((k, username) in output.withIndex()) {
@@ -504,17 +478,17 @@ class UserManagerTest {
     @Test
     fun `test get top 7`() {
         val ids = (0..6).map { userManager.addUser(it.toString(), it.toString()).get() }
-        ids.forEach { userManager.addChannelToUser(it,it * 100).get() }
+        ids.forEach { userManager.addChannelToUser(it, it * 100).get() }
 
         val best = mutableListOf<Long>(ids[2], ids[5], ids[0], ids[4], ids[3], ids[1], ids[6])
-        (5000..5028).forEach { userManager.addChannelToUser(best[0],it.toLong()).get() }
-        (5000..5022).forEach { userManager.addChannelToUser(best[1],it.toLong()).get() }
-        (5000..5020).forEach { userManager.addChannelToUser(best[2],it.toLong()).get() }
-        (5000..5019).forEach { userManager.addChannelToUser(best[3],it.toLong()).get() }
-        (5000..5017).forEach { userManager.addChannelToUser(best[4],it.toLong()).get() }
+        (5000..5028).forEach { userManager.addChannelToUser(best[0], it.toLong()).get() }
+        (5000..5022).forEach { userManager.addChannelToUser(best[1], it.toLong()).get() }
+        (5000..5020).forEach { userManager.addChannelToUser(best[2], it.toLong()).get() }
+        (5000..5019).forEach { userManager.addChannelToUser(best[3], it.toLong()).get() }
+        (5000..5017).forEach { userManager.addChannelToUser(best[4], it.toLong()).get() }
 
-        (5000..5012).forEach { userManager.addChannelToUser(best[5],it.toLong()).get() }
-        (5000..5012).forEach { userManager.addChannelToUser(best[6],it.toLong()).get() }
+        (5000..5012).forEach { userManager.addChannelToUser(best[5], it.toLong()).get() }
+        (5000..5012).forEach { userManager.addChannelToUser(best[6], it.toLong()).get() }
 
         val output = userManager.getTop10UsersByChannelsCount().get()
         val outputIds = output.map { userManager.getUserId(it).get() }
@@ -526,18 +500,18 @@ class UserManagerTest {
     @Test
     fun `check secondary order`() {
         val ids = (0..6).map { userManager.addUser(it.toString(), it.toString()).get() }
-        ids.forEach { userManager.addChannelToUser(it,it * 100).get() }
+        ids.forEach { userManager.addChannelToUser(it, it * 100).get() }
 
         val best = mutableListOf<Long>(ids[2], ids[5], ids[0], ids[3], ids[4], ids[1], ids[6])
-        (5000..5028).forEach { userManager.addChannelToUser(best[0],it.toLong()).get() }
-        (5000..5022).forEach { userManager.addChannelToUser(best[1],it.toLong()).get() }
-        (5000..5020).forEach { userManager.addChannelToUser(best[2],it.toLong()).get() }
+        (5000..5028).forEach { userManager.addChannelToUser(best[0], it.toLong()).get() }
+        (5000..5022).forEach { userManager.addChannelToUser(best[1], it.toLong()).get() }
+        (5000..5020).forEach { userManager.addChannelToUser(best[2], it.toLong()).get() }
 
-        (5000..5017).forEach { userManager.addChannelToUser(best[3],it.toLong()).get() }
-        (5000..5017).forEach { userManager.addChannelToUser(best[4],it.toLong()).get() }
+        (5000..5017).forEach { userManager.addChannelToUser(best[3], it.toLong()).get() }
+        (5000..5017).forEach { userManager.addChannelToUser(best[4], it.toLong()).get() }
 
-        (5000..5012).forEach { userManager.addChannelToUser(best[5],it.toLong()).get() }
-        (5000..5012).forEach { userManager.addChannelToUser(best[6],it.toLong()).get() }
+        (5000..5012).forEach { userManager.addChannelToUser(best[5], it.toLong()).get() }
+        (5000..5012).forEach { userManager.addChannelToUser(best[6], it.toLong()).get() }
 
         val output = userManager.getTop10UsersByChannelsCount().get()
         val outputIds = output.map { userManager.getUserId(it).get() }
@@ -549,7 +523,7 @@ class UserManagerTest {
     @Test
     fun `check secondary order only`() {
         val ids = (0..30).map { userManager.addUser(it.toString(), it.toString()).get() }
-        ids.forEach { userManager.addChannelToUser(it,it * 100).get() }
+        ids.forEach { userManager.addChannelToUser(it, it * 100).get() }
 
         val output = userManager.getTop10UsersByChannelsCount().get()
         val outputIds = output.map { userManager.getUserId(it).get() }
