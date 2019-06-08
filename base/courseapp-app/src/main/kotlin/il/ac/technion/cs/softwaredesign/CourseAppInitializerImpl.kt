@@ -21,7 +21,7 @@ class CourseAppInitializerImpl
 
     override fun setup(): CompletableFuture<Unit> {
         initStatistics()
-        initTrees()
+        //initTrees()
         return ImmediateFuture { Unit } // TODO: fix
     }
 

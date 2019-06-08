@@ -52,16 +52,20 @@ import java.util.*
  * Initializes an empty symbol table.
  */
 class SecureAVLTree<Key : ISecureStorageKey<Key>>
-constructor(private val primitiveStorage: SecureStorage, private val keyDefault: () -> Key) {
+constructor(private val primitiveStorage: SecureStorage, private val keyDefault: () -> Key,
+            private val pointerPrefix: Long? = null) {
 
-    private val secureStorage: StorageWrapper = StorageWrapper(primitiveStorage)
+    private val secureStorage: StorageWrapper = StorageWrapper(primitiveStorage, pointerPrefix)
     /**
      * The root node.
      */
     private var root: Node? = null
         get() {
-            val rootIndexByteArray = secureStorage.read(ROOT_KEY.toByteArray())
-                    ?: throw NullPointerException("root Index should not be null after loading from storage")
+            var rootIndexByteArray = secureStorage.read(ROOT_KEY.toByteArray())
+            if (rootIndexByteArray == null) {
+                secureStorage.write(ROOT_KEY.toByteArray(),ROOT_INIT_INDEX.longToByteArray())
+                rootIndexByteArray = secureStorage.read(ROOT_KEY.toByteArray())!!
+            }
             val rootIndex = rootIndexByteArray.bytesToLong()
 
             if (rootIndex <= ROOT_INIT_INDEX) return null

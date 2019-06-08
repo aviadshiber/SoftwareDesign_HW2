@@ -45,13 +45,9 @@ class SecureAVLTreeTest {
     }
     private val storageMock= mutableMapOf<ByteArrayKey,ByteArray>()
     private var storageLayer: SecureStorage = mockk()
-    private val tree=SecureAVLTree(storageLayer) {SimpleKey(0L)}
+    private val tree=SecureAVLTree(storageLayer, {SimpleKey(0L)})
     private val blackRedTree= TreeMap<SimpleKey,SimpleKey>()
 
-    private fun initTree() {
-
-        storageLayer.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX))
-    }
     init{
         val keySlot= slot<ByteArray>()
         val valueSlot= slot<ByteArray>()
@@ -69,15 +65,7 @@ class SecureAVLTreeTest {
             val key = ByteArrayKey(keySlot.captured)
             ImmediateFuture{storageMock[key]}
         }
-
     }
-
-    @BeforeEach
-    fun setUp(){
-        initTree()
-
-    }
-
 
     @Test
     fun isEmpty() {

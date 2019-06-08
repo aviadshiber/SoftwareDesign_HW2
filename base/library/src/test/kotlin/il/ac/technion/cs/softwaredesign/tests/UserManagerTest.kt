@@ -45,7 +45,7 @@ class UserManagerTest {
     @BeforeEach
     private fun init() {
         initStatistics()
-        initTrees()
+        //initTrees()
     }
 
     @Test

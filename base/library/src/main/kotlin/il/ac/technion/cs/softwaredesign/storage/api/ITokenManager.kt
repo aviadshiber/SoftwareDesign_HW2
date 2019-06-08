@@ -31,5 +31,4 @@ interface ITokenManager {
      * @throws IllegalArgumentException if token does not belong to any user
      */
     fun invalidateUserToken(token : String): CompletableFuture<Unit>
-
 }
