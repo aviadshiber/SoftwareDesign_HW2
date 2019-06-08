@@ -20,7 +20,6 @@ class CourseAppImpl
                     private val userManager: IUserManager,
                     private val channelManager: IChannelManager) : CourseApp {
 
-
     internal companion object {
         val regex: Regex = Regex("#[#_A-Za-z0-9]*")
     }
@@ -35,37 +34,6 @@ class CourseAppImpl
         }
     }
 
-    private fun loginFuture(userId: Long, hashedPassword: String): CompletableFuture<String> {
-        return userManager.getUserPassword(userId).thenApply { validatedPassword(it, hashedPassword) }
-                .thenCompose { userManager.getUserStatus(userId) }
-                .thenApply { if (it == IUserManager.LoginStatus.IN) throw UserAlreadyLoggedInException() }
-                .thenCompose { updateToLoginFuture(userId) }
-                .thenCompose { tokenManager.assignTokenToUserId(userId) }
-    }
-
-    private fun updateToLoginFuture(userId: Long): CompletableFuture<List<Unit>> {
-        val updateUserStatusFuture = userManager.updateUserStatus(userId, IUserManager.LoginStatus.IN)
-        val updateChannelStatusFuture = updateUserStatusInChannels(userId, IUserManager.LoginStatus.IN)
-        return Future.allAsList(listOf(updateUserStatusFuture, updateChannelStatusFuture))
-    }
-
-
-    private fun validatedPassword(it: String?, hashedPassword: String) =
-            if (it != hashedPassword) throw NoSuchEntityException() else it
-
-    private fun registerFuture(username: String, hashedPassword: String): CompletableFuture<String> {
-        return userManager.addUser(username, hashedPassword)
-                .thenCompose { userId -> upgradeFirstUserToAdminFuture(userId) }
-                .thenCompose { userId -> tokenManager.assignTokenToUserId(userId) }
-    }
-
-    private fun upgradeFirstUserToAdminFuture(userId: Long): CompletableFuture<Long> {
-        return if (userId == 1L)
-            userManager.updateUserPrivilege(userId, IUserManager.PrivilegeLevel.ADMIN).thenApply { userId }
-        else
-            ImmediateFuture { userId }
-    }
-
     override fun logout(token: String): CompletableFuture<Unit> {
         return tokenManager.getUserIdByToken(token).thenApply { it ?: throw InvalidTokenException() }
                 .thenCompose { userId -> tokenManager.invalidateUserToken(token).thenApply { userId } }
@@ -75,12 +43,6 @@ class CourseAppImpl
                     else throw it
                 }
                 .thenCompose { userId -> updateToLogoutFuture(userId) }.thenApply { Unit }
-    }
-
-    private fun updateToLogoutFuture(userId: Long): CompletableFuture<List<Unit>> {
-        val updateUserStatusFuture = userManager.updateUserStatus(userId, IUserManager.LoginStatus.OUT)
-        val updateChannelStatusFuture = updateUserStatusInChannels(userId, IUserManager.LoginStatus.OUT)
-        return Future.allAsList(listOf(updateUserStatusFuture, updateChannelStatusFuture))
     }
 
     override fun isUserLoggedIn(token: String, username: String): CompletableFuture<Boolean?> {
@@ -95,9 +57,6 @@ class CourseAppImpl
                         ImmediateFuture { null }
                 }
     }
-
-    private fun validateTokenFuture(token: String) =
-            tokenManager.isTokenValid(token).thenApply { if (!it) throw InvalidTokenException() }
 
     override fun makeAdministrator(token: String, username: String): CompletableFuture<Unit> {
         return validateTokenFuture(token).thenCompose { tokenManager.getUserIdByToken(token) }
@@ -126,7 +85,6 @@ class CourseAppImpl
                     increaseNumberOfActiveMembersInChannelForLoggedInUser(userId, channelId)
                 }
     }
-
 
     override fun channelPart(token: String, channel: String): CompletableFuture<Unit> {
         return validateTokenFuture(token)
@@ -168,32 +126,6 @@ class CourseAppImpl
 
     }
 
-    private fun validateUserInChannel(userId: Long?, channelId: Long): CompletableFuture<Pair<Long, Long>> {
-        return if (userId == null)
-            throw NoSuchEntityException()
-        else
-            isUserMember(userId, channelId).thenApply { if (!it) throw NoSuchEntityException() }
-                    .thenApply { Pair(userId, channelId) }
-    }
-
-    private fun validateUserIsOperatorOrAdmin(initiatorUserId: Long, channelId: Long, operatorPrivilege: IUserManager.PrivilegeLevel): CompletableFuture<Triple<Long, Long, IUserManager.PrivilegeLevel>> {
-        return isUserOperator(initiatorUserId, channelId).thenApply {
-            if (!it && operatorPrivilege != IUserManager.PrivilegeLevel.ADMIN)
-                throw UserNotAuthorizedException()
-        }.thenApply { Triple(initiatorUserId, channelId, operatorPrivilege) }
-    }
-
-    private fun validateUserIsOperatorOrChannelAdmin(initiatorUserId: Long, channelId: Long, operatorPrivilege: IUserManager.PrivilegeLevel?, userId: Long?): CompletableFuture<Unit> {
-        return isUserOperator(initiatorUserId, channelId)
-                .thenApply {
-                    if (!it && operatorPrivilege == IUserManager.PrivilegeLevel.ADMIN && (userId == null || userId != initiatorUserId))
-                        throw UserNotAuthorizedException()
-                }
-    }
-
-    private fun validateMembershipInChannelFuture(initiatorUserId: Long, channelId: Long) =
-            isUserMember(initiatorUserId, channelId).thenApply { if (!it) throw UserNotAuthorizedException() }.thenApply { Pair(initiatorUserId, channelId) }
-
     override fun channelKick(token: String, channel: String, username: String): CompletableFuture<Unit> {
         return preValidations(token, channel).thenCompose { (initiatorUserId, channelId) -> validateUserIsOperator(initiatorUserId, channelId) }
                 .thenCompose { channelId -> userManager.getUserId(username).thenApply { Pair(it, channelId) } }
@@ -227,6 +159,7 @@ class CourseAppImpl
                 thenCompose { channelId->   channelManager.getNumberOfMembersInChannel(channelId)}
     }
 
+    // TODO: implement
     override fun addListener(token: String, callback: ListenerCallback): CompletableFuture<Unit> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
@@ -251,7 +184,73 @@ class CourseAppImpl
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
+
     /** PRIVATES **/
+
+    private fun loginFuture(userId: Long, hashedPassword: String): CompletableFuture<String> {
+        return userManager.getUserPassword(userId).thenApply { validatedPassword(it, hashedPassword) }
+                .thenCompose { userManager.getUserStatus(userId) }
+                .thenApply { if (it == IUserManager.LoginStatus.IN) throw UserAlreadyLoggedInException() }
+                .thenCompose { updateToLoginFuture(userId) }
+                .thenCompose { tokenManager.assignTokenToUserId(userId) }
+    }
+
+    private fun updateToLoginFuture(userId: Long): CompletableFuture<List<Unit>> {
+        val updateUserStatusFuture = userManager.updateUserStatus(userId, IUserManager.LoginStatus.IN)
+        val updateChannelStatusFuture = updateUserStatusInChannels(userId, IUserManager.LoginStatus.IN)
+        return Future.allAsList(listOf(updateUserStatusFuture, updateChannelStatusFuture))
+    }
+
+    private fun validatedPassword(it: String?, hashedPassword: String) =
+            if (it != hashedPassword) throw NoSuchEntityException() else it
+
+    private fun registerFuture(username: String, hashedPassword: String): CompletableFuture<String> {
+        return userManager.addUser(username, hashedPassword)
+                .thenCompose { userId -> upgradeFirstUserToAdminFuture(userId) }
+                .thenCompose { userId -> tokenManager.assignTokenToUserId(userId) }
+    }
+
+    private fun upgradeFirstUserToAdminFuture(userId: Long): CompletableFuture<Long> {
+        return if (userId == 1L)
+            userManager.updateUserPrivilege(userId, IUserManager.PrivilegeLevel.ADMIN).thenApply { userId }
+        else
+            ImmediateFuture { userId }
+    }
+
+    private fun updateToLogoutFuture(userId: Long): CompletableFuture<List<Unit>> {
+        val updateUserStatusFuture = userManager.updateUserStatus(userId, IUserManager.LoginStatus.OUT)
+        val updateChannelStatusFuture = updateUserStatusInChannels(userId, IUserManager.LoginStatus.OUT)
+        return Future.allAsList(listOf(updateUserStatusFuture, updateChannelStatusFuture))
+    }
+
+    private fun validateTokenFuture(token: String) =
+            tokenManager.isTokenValid(token).thenApply { if (!it) throw InvalidTokenException() }
+
+    private fun validateUserInChannel(userId: Long?, channelId: Long): CompletableFuture<Pair<Long, Long>> {
+        return if (userId == null)
+            throw NoSuchEntityException()
+        else
+            isUserMember(userId, channelId).thenApply { if (!it) throw NoSuchEntityException() }
+                    .thenApply { Pair(userId, channelId) }
+    }
+
+    private fun validateUserIsOperatorOrAdmin(initiatorUserId: Long, channelId: Long, operatorPrivilege: IUserManager.PrivilegeLevel): CompletableFuture<Triple<Long, Long, IUserManager.PrivilegeLevel>> {
+        return isUserOperator(initiatorUserId, channelId).thenApply {
+            if (!it && operatorPrivilege != IUserManager.PrivilegeLevel.ADMIN)
+                throw UserNotAuthorizedException()
+        }.thenApply { Triple(initiatorUserId, channelId, operatorPrivilege) }
+    }
+
+    private fun validateUserIsOperatorOrChannelAdmin(initiatorUserId: Long, channelId: Long, operatorPrivilege: IUserManager.PrivilegeLevel?, userId: Long?): CompletableFuture<Unit> {
+        return isUserOperator(initiatorUserId, channelId)
+                .thenApply {
+                    if (!it && operatorPrivilege == IUserManager.PrivilegeLevel.ADMIN && (userId == null || userId != initiatorUserId))
+                        throw UserNotAuthorizedException()
+                }
+    }
+
+    private fun validateMembershipInChannelFuture(initiatorUserId: Long, channelId: Long) =
+            isUserMember(initiatorUserId, channelId).thenApply { if (!it) throw UserNotAuthorizedException() }.thenApply { Pair(initiatorUserId, channelId) }
 
     private fun validateUserPrivilegeOnChannelFuture(token: String, channel: String): CompletableFuture<Long> {
         return preValidations(token, channel)
@@ -352,7 +351,6 @@ class CourseAppImpl
                             .thenApply { cid }
                 }.thenApply { channelId -> Pair(channelId, userId) }
     }
-
 
     private fun updateUserStatusInChannels(userId: Long, newStatus: IUserManager.LoginStatus): CompletableFuture<Unit> {
         return userManager.getChannelListOfUser(userId).thenCompose {
