@@ -6,6 +6,7 @@ import il.ac.technion.cs.softwaredesign.storage.api.IChannelManager
 import il.ac.technion.cs.softwaredesign.storage.api.IStatisticsManager
 import il.ac.technion.cs.softwaredesign.storage.channels.IChannelStorage
 import il.ac.technion.cs.softwaredesign.storage.datastructures.CountIdKey
+import il.ac.technion.cs.softwaredesign.storage.datastructures.IdKey
 import il.ac.technion.cs.softwaredesign.storage.datastructures.SecureAVLTree
 import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES.TREE_CHANNELS_BY_ACTIVE_USERS_COUNT
 import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES.TREE_CHANNELS_BY_USERS_COUNT
@@ -27,12 +28,13 @@ class ChannelManager
                     private val statisticsManager: IStatisticsManager,
                     @ChannelIdSeqGenerator private val channelIdGenerator: ISequenceGenerator,
                     @ChannelByUserCountStorage private val channelsByUsersCountStorage: SecureStorage,
-                    @ChannelByActiveUserCountStorage private val channelsByActiveUsersCountStorage: SecureStorage
+                    @ChannelByActiveUserCountStorage private val channelsByActiveUsersCountStorage: SecureStorage,
+                    @ChannelMessagesTreesStorage private val channelMessagesTreesStorage: SecureStorage
 ) : IChannelManager {
-    private val defaultKey: () -> CountIdKey = { CountIdKey() }
-
-    private val channelsByUsersCountTree = SecureAVLTree(channelsByUsersCountStorage, defaultKey)
-    private val channelsByActiveUsersCountTree = SecureAVLTree(channelsByActiveUsersCountStorage, defaultKey)
+    private val defaultCountIdKey: () -> CountIdKey = { CountIdKey() }
+    private val defaultIdKey: () -> IdKey = { IdKey() }
+    private val channelsByUsersCountTree = SecureAVLTree(channelsByUsersCountStorage, defaultCountIdKey)
+    private val channelsByActiveUsersCountTree = SecureAVLTree(channelsByActiveUsersCountStorage, defaultCountIdKey)
 
     override fun addChannel(channelName: String): CompletableFuture<Long> {
         return getNextChannelIdFuture(channelName).thenCompose { channelId-> propertiesSetterFuture(channelId,channelName) }
@@ -93,6 +95,28 @@ class ChannelManager
 
     override fun getNumberOfChannels(): CompletableFuture<Long> {
         return statisticsManager.getNumberOfChannels()
+    }
+
+
+    /** CHANNEL MESSAGES **/
+    override fun addMessageToChannel(channelId: Long, msgId: Long): CompletableFuture<Unit> {
+        return isChannelIdExists(channelId).thenApply {
+            if (!it) Unit
+            else {
+                val channelMessagesTree = SecureAVLTree(channelMessagesTreesStorage, defaultIdKey, channelId)
+                channelMessagesTree.put(IdKey(msgId))
+            }
+        }
+    }
+
+    override fun isMessageInChannel(channelId: Long, msgId: Long): CompletableFuture<Boolean> {
+        return isChannelIdExists(channelId).thenApply {
+            if (!it) throw IllegalArgumentException("channel id does not exist")
+            else {
+                val channelMessagesTree = SecureAVLTree(channelMessagesTreesStorage, defaultIdKey, channelId)
+                channelMessagesTree[IdKey(msgId)] != null
+            }
+        }
     }
 
 

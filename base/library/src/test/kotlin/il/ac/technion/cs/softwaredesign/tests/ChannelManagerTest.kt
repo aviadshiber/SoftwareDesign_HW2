@@ -1,40 +1,24 @@
 package il.ac.technion.cs.softwaredesign.tests
 
 import com.authzee.kotlinguice4.getInstance
-import com.google.common.primitives.Longs
 import com.google.inject.Guice
 import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
 import il.ac.technion.cs.softwaredesign.storage.api.IChannelManager
-import il.ac.technion.cs.softwaredesign.storage.SecureStorageFactory
 import il.ac.technion.cs.softwaredesign.storage.statistics.IStatisticsStorage
-import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS
-import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.ROOT_INIT_INDEX
-import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.ROOT_KEY
 import io.github.vjames19.futures.jdk8.ImmediateFuture
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
-import java.util.concurrent.CompletableFuture
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 class ChannelManagerTest {
     private val injector = Guice.createInjector(LibraryTestModule())
 
     private val channelManager = injector.getInstance<IChannelManager>()
-
-    private fun initTrees() {
-        val factory = injector.getInstance<SecureStorageFactory>()
-        val s1 = factory.open(DB_NAMES.TREE_USERS_BY_CHANNELS_COUNT.toByteArray()).get()
-        val s2 = factory.open(DB_NAMES.TREE_CHANNELS_BY_ACTIVE_USERS_COUNT.toByteArray()).get()
-        val s3 = factory.open(DB_NAMES.TREE_CHANNELS_BY_USERS_COUNT.toByteArray()).get()
-        s1.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX)).get()
-        s2.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX)).get()
-        s3.write(ROOT_KEY.toByteArray(), Longs.toByteArray(ROOT_INIT_INDEX)).get()
-    }
 
     private fun initStatistics() {
         val statisticsStorage = injector.getInstance<IStatisticsStorage>()
@@ -47,7 +31,6 @@ class ChannelManagerTest {
     @BeforeEach
     private fun init() {
         initStatistics()
-        //initTrees()
     }
 
     @Test
@@ -310,7 +293,6 @@ class ChannelManagerTest {
         assertThat(channelManager.getNumberOfActiveMembersInChannel(id3).get(), equalTo(0L))
     }
 
-    //TODO: failed test
     @Test
     fun `updateNumberOfMembers update value`() {
         val id1 = channelManager.addChannel("ron").get()
@@ -539,7 +521,6 @@ class ChannelManagerTest {
         assertThat(channelManager.getNumberOfChannels().get(), equalTo(0L))
     }
 
-    //TODO: failed test
     @Test
     fun `increase decrease number of active members`() {
         val id0 = channelManager.addChannel("ron").get()
@@ -592,7 +573,6 @@ class ChannelManagerTest {
         assertThat(channelManager.getChannelMembersList(id1).get().size.toLong(), equalTo(channelManager.getNumberOfMembersInChannel(id1).get()))
     }
 
-    //TODO: stackoverflow
     @Test
     fun `test get top 10`() {
         val ids = (0..40).map { channelManager.addChannel(it.toString()).get() }
@@ -627,7 +607,6 @@ class ChannelManagerTest {
         }
     }
 
-    //TODO: stackoverflow
     @Test
     fun `test get top 7`() {
         val ids = (0..6).map { channelManager.addChannel(it.toString()).get() }
@@ -650,7 +629,6 @@ class ChannelManagerTest {
         }
     }
 
-    //TODO: stackoverflow
     @Test
     fun `check secondary order`() {
         val ids = (0..6).map { channelManager.addChannel(it.toString()).get() }
@@ -674,7 +652,6 @@ class ChannelManagerTest {
         }
     }
 
-    //TODO: stackoverflow
     @Test
     fun `check secondary order only`() {
         val ids = (0..30).map { channelManager.addChannel(it.toString()).get() }
@@ -685,5 +662,44 @@ class ChannelManagerTest {
         for ((k, userId) in outputIds.withIndex()) {
             assertThat(userId, equalTo(ids[k]))
         }
+    }
+
+    @Test
+    fun `add message to channel`() {
+        val channelname="#chanelname"
+        val msgs = listOf<Long>(123L, 15L, 288L, 45L)
+
+        assertThat(
+                channelManager.addChannel(channelname)
+                        .thenCompose { channelId -> channelManager.addMessageToChannel(channelId, msgs[0]).thenApply{ channelId } }
+                        .thenCompose { channelId -> channelManager.addMessageToChannel(channelId, msgs[1]).thenApply{ channelId } }
+                        .thenCompose { channelId -> channelManager.addMessageToChannel(channelId, msgs[2]).thenApply{ channelId } }
+                        .thenCompose { channelId -> channelManager.addMessageToChannel(channelId, msgs[3]).thenApply{ channelId } }
+                        .thenCompose { channelId -> channelManager.isMessageInChannel(channelId, msgs[2]) }
+                        .join(),
+                isTrue
+        )
+
+        val id = channelManager.addChannel(channelname+channelname).get()
+        assertThat(channelManager.isMessageInChannel(id, msgs[0]).join(), isFalse)
+        assertThat(channelManager.isMessageInChannel(id, msgs[1]).join(), isFalse)
+        assertThat(channelManager.isMessageInChannel(id, msgs[2]).join(), isFalse)
+        assertThat(channelManager.isMessageInChannel(id, msgs[3]).join(), isFalse)
+
+        channelManager.addMessageToChannel(id, msgs[0])
+            .thenCompose { channelManager.addMessageToChannel(id, msgs[1])}
+            .thenCompose { channelManager.addMessageToChannel(id, msgs[2])}
+            .thenCompose { channelManager.addMessageToChannel(id, msgs[3])}
+            .thenCompose { channelManager.isMessageInChannel(id, msgs[0]) }
+            .join()
+
+        assertThat(channelManager.isMessageInChannel(id, msgs[0]).join(), isTrue)
+        assertThat(channelManager.isMessageInChannel(id, msgs[1]).join(), isTrue)
+        assertThat(channelManager.isMessageInChannel(id, msgs[2]).join(), isTrue)
+        assertThat(channelManager.isMessageInChannel(id, msgs[3]).join(), isTrue)
+
+
+        // channel does not exist
+        assertThrows<IllegalArgumentException> { channelManager.isMessageInChannel(id*100L, msgs[0]).joinException() }
     }
 }

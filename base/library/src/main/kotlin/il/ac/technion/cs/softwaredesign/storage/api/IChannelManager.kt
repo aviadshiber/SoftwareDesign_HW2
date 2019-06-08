@@ -55,6 +55,25 @@ interface IChannelManager {
     fun getNumberOfChannels() : CompletableFuture<Long>
 
 
+    /** CHANNEL MESSAGES */
+    /**
+     * add msg to channel
+     * @param userId channel id
+     * @param msgId message id
+     * @throws IllegalArgumentException throws if channel id does not exist in the system
+     */
+    fun addMessageToChannel(channelId: Long, msgId: Long): CompletableFuture<Unit>
+
+    /**
+     * add msg to channel
+     * @param channelId channel id
+     * @param msgId message id
+     * @throws IllegalArgumentException throws if channel id does not exist in the system
+     * @return true if message exists in channel, false otherwise
+     */
+    fun isMessageInChannel(channelId: Long, msgId: Long): CompletableFuture<Boolean>
+
+
     /** NUMBER OF ACTIVE MEMBERS **/
     /** this property should be updated regardless members list updates **/
     /**
