@@ -67,4 +67,42 @@ class MessageManagerTest {
         Assertions.assertEquals(messageManager.getMessageReceivedTime(id1).join(), receivedTime)
     }
 
+    @Test
+    fun `add broadcast message succeeded`() {
+        val id1 = messageManager.generateUniqueMessageId().join()
+        val mediaType = 0L
+        val content = "hello".toByteArray()
+        val createdTime = LocalDateTime.now()
+        val messageType = IMessageManager.MessageType.BROADCAST
+        messageManager.addMessage(id1, mediaType, content, createdTime, messageType, startCounter = 7).join()
+
+        Assertions.assertEquals(messageManager.getMessageMediaType(id1).join(), mediaType)
+        Assertions.assertEquals(messageManager.getMessageContent(id1).join(), content)
+        Assertions.assertEquals(messageManager.getMessageCreatedTime(id1).join(), createdTime)
+        Assertions.assertEquals(messageManager.getMessageType(id1).join(), messageType)
+        Assertions.assertEquals(messageManager.getMessageReceivedTime(id1).join(), null)
+        Assertions.assertEquals(messageManager.getMessageCounter(id1).join(), 7)
+
+        val receivedTime = LocalDateTime.now()
+        messageManager.updateMessageReceivedTime(id1, receivedTime).join()
+
+        Assertions.assertEquals(messageManager.getMessageMediaType(id1).join(), mediaType)
+        Assertions.assertEquals(messageManager.getMessageContent(id1).join(), content)
+        Assertions.assertEquals(messageManager.getMessageCreatedTime(id1).join(), createdTime)
+        Assertions.assertEquals(messageManager.getMessageType(id1).join(), messageType)
+        Assertions.assertEquals(messageManager.getMessageReceivedTime(id1).join(), receivedTime)
+        Assertions.assertEquals(messageManager.getMessageCounter(id1).join(), 7)
+
+        assertThrows<IllegalArgumentException> {messageManager.getMessageCounter(id1+id1).joinException()  }
+        val id2 = messageManager.generateUniqueMessageId().join()
+        messageManager.addMessage(id2, mediaType, content, createdTime, IMessageManager.MessageType.CHANNEL, startCounter = 7).join()
+        assertThrows<IllegalAccessException> {
+            messageManager.getMessageCounter(id2).joinException()
+        }
+        assertThrows<IllegalAccessException> {
+            messageManager.decreaseMessageCounterBy(id2, 5).joinException()
+        }
+        messageManager.decreaseMessageCounterBy(id1, 5).join()
+        Assertions.assertEquals(messageManager.getMessageCounter(id1).join(), 2)
+    }
 }

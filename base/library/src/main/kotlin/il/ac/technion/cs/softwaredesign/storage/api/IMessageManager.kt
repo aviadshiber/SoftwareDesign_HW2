@@ -34,7 +34,7 @@ interface IMessageManager {
      * @return CompletableFuture<Unit>
      */
     fun addMessage(id: Long, mediaType: Long, content: ByteArray, created: LocalDateTime,
-                   messageType: MessageType): CompletableFuture<Unit>
+                   messageType: MessageType, startCounter: Long? = null): CompletableFuture<Unit>
 
     /**
      * gets message mediaType
@@ -76,10 +76,28 @@ interface IMessageManager {
     fun getMessageType(msgId: Long): CompletableFuture<MessageType>
 
     /**
+     * gets message counter, i.e. number of users that hasn't been read the message
+     * @param msgId message id
+     * @throws IllegalArgumentException throws if message id does not exist in the system
+     * @throws IllegalAccessException throws if message is not a broadcast
+     * @return message counter
+     */
+    fun getMessageCounter(msgId: Long): CompletableFuture<Long>
+
+    /**
      * updates a message received time
      * @param msgId message id
      * @param received received time
      * @throws IllegalArgumentException throws if message id does not exist in the system
      */
     fun updateMessageReceivedTime(msgId: Long, received: LocalDateTime): CompletableFuture<Unit>
+
+    /**
+     * decrease message counter by count
+     * @param msgId message id
+     * @param count Long
+     * @throws IllegalArgumentException throws if message id does not exist in the system
+     * @throws IllegalAccessException throws if message is not a broadcast
+     */
+    fun decreaseMessageCounterBy(msgId: Long, count: Long = 1): CompletableFuture<Unit>
 }

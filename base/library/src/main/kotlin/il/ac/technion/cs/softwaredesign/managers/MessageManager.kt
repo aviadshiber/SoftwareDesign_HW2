@@ -22,14 +22,19 @@ class MessageManager @Inject constructor(
     }
 
     override fun addMessage(id: Long, mediaType: Long, content: ByteArray, created: LocalDateTime,
-                            messageType: IMessageManager.MessageType): CompletableFuture<Unit> {
+                            messageType: IMessageManager.MessageType, startCounter: Long?): CompletableFuture<Unit> {
         val mediaTypeSetter=messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_MEDIA_TYPE, mediaType = mediaType)
         val contentSetter=messageStorage.setByteArrayToId(id, MANAGERS_CONSTS.MESSAGE_CONTENTS, content)
         val createsSetter=messageStorage.setTimeToId(id, MANAGERS_CONSTS.MESSAGE_CREATED_TIME, created)
-        //val receivedSetter=messageStorage.setTimeToId(id, MANAGERS_CONSTS.MESSAGE_RECEIVED_TIME, received)
         // no need to set received time because it is null
         val messageTypeSetter=messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_TYPE, messageType.ordinal.toLong())
-        val ls= listOf(mediaTypeSetter,contentSetter,createsSetter,messageTypeSetter)
+        val ls: List<CompletableFuture<Unit>>
+        if (messageType == IMessageManager.MessageType.BROADCAST && startCounter != null) {
+            val counterSetter=messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_COUNTER, startCounter)
+            ls = listOf(mediaTypeSetter,contentSetter,createsSetter,messageTypeSetter, counterSetter)
+        } else {
+            ls = listOf(mediaTypeSetter,contentSetter,createsSetter,messageTypeSetter)
+        }
         return Future.allAsList(ls).thenApply { Unit }
     }
 
@@ -58,7 +63,21 @@ class MessageManager @Inject constructor(
                 .thenApply { IMessageManager.MessageType.values()[it.toInt()] }
     }
 
+    override fun getMessageCounter(msgId: Long): CompletableFuture<Long> {
+        return getMessageType(msgId).thenCompose {
+            if (it == null) throw IllegalArgumentException("message id does not exist")
+            if (it != IMessageManager.MessageType.BROADCAST) throw IllegalAccessException("message is not broadcast")
+            else messageStorage.getLongById(msgId, MANAGERS_CONSTS.MESSAGE_COUNTER).thenApply { counter->counter!! }
+        }
+    }
+
     override fun updateMessageReceivedTime(msgId: Long, received: LocalDateTime): CompletableFuture<Unit> {
         return messageStorage.setTimeToId(msgId, MANAGERS_CONSTS.MESSAGE_RECEIVED_TIME, received)
+    }
+
+    override fun decreaseMessageCounterBy(msgId: Long, count: Long): CompletableFuture<Unit> {
+        return getMessageCounter(msgId).thenCompose {
+            messageStorage.setLongToId(msgId, MANAGERS_CONSTS.MESSAGE_COUNTER, it - count)
+        }
     }
 }
