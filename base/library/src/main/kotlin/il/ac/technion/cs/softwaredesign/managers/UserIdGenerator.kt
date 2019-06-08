@@ -17,9 +17,5 @@ class UserIdGenerator @Inject constructor(private val statisticsStorage: IStatis
             statisticsStorage.setLongValue(NUMBER_OF_USERS, newValue)
             newValue
         }
-//        val currentValue = statisticsStorage.getLongValue(NUMBER_OF_USERS) ?: throw NullPointerException("Number of users must be valid key")
-//        val newValue = currentValue+1L
-//        statisticsStorage.setLongValue(NUMBER_OF_USERS, newValue)
-//        return newValue
     }
 }

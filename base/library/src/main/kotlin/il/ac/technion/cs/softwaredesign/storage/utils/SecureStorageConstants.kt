@@ -29,6 +29,7 @@ object MANAGERS_CONSTS{
     const val MESSAGE_CONTENTS="content"
     const val MESSAGE_CREATED_TIME="created"
     const val MESSAGE_RECEIVED_TIME="received"
+    const val MESSAGE_TYPE="type"
 }
 
 object TREE_CONST {

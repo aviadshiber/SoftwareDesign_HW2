@@ -7,25 +7,26 @@ import il.ac.technion.cs.softwaredesign.storage.utils.ConversionUtils.createProp
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 import java.time.LocalDateTime
 import java.util.concurrent.CompletableFuture
+import javax.inject.Inject
 
-class SecureMessageStorage(@MessageDetailsStorage private val messageDetailsStorage: SecureStorage) : IMessageStorage {
-    override fun getMediaTypeById(messageId: Long, property: String): CompletableFuture<Long?> {
+class SecureMessageStorage @Inject constructor(@MessageDetailsStorage private val messageDetailsStorage: SecureStorage) : IMessageStorage {
+    override fun getLongById(messageId: Long, property: String): CompletableFuture<Long?> {
         val key = createPropertyKey(messageId, property)
         val value = messageDetailsStorage.read(key)
         return value.thenApply { if (it == null) null else ConversionUtils.bytesToLong(it) }
     }
 
-    override fun setMediaTypeToId(messageId: Long, property: String, mediaType: Long): CompletableFuture<Unit> {
+    override fun setLongToId(messageId: Long, property: String, mediaType: Long): CompletableFuture<Unit> {
         val key = createPropertyKey(messageId, property)
         return messageDetailsStorage.write(key, ConversionUtils.longToBytes(mediaType))
     }
 
-    override fun getContentById(messageId: Long, property: String): CompletableFuture<ByteArray?> {
+    override fun getByteArrayById(messageId: Long, property: String): CompletableFuture<ByteArray?> {
         val key = createPropertyKey(messageId, property)
         return messageDetailsStorage.read(key)
     }
 
-    override fun setContentToId(messageId: Long, property: String, content: ByteArray): CompletableFuture<Unit> {
+    override fun setByteArrayToId(messageId: Long, property: String, content: ByteArray): CompletableFuture<Unit> {
         val key = createPropertyKey(messageId, property)
         return messageDetailsStorage.write(key, content)
     }

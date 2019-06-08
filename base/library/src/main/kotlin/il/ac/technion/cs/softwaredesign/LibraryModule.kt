@@ -14,6 +14,8 @@ import il.ac.technion.cs.softwaredesign.storage.api.*
 import il.ac.technion.cs.softwaredesign.storage.channels.IChannelStorage
 import il.ac.technion.cs.softwaredesign.storage.users.IUserStorage
 import il.ac.technion.cs.softwaredesign.storage.channels.SecureChannelStorage
+import il.ac.technion.cs.softwaredesign.storage.messages.IMessageStorage
+import il.ac.technion.cs.softwaredesign.storage.messages.SecureMessageStorage
 import il.ac.technion.cs.softwaredesign.storage.proxies.SecureStorageCache
 import il.ac.technion.cs.softwaredesign.storage.statistics.IStatisticsStorage
 import il.ac.technion.cs.softwaredesign.storage.statistics.SecureStatisticsStorage
@@ -32,8 +34,10 @@ class LibraryModule : KotlinModule() {
         bind<ISequenceGenerator>().annotatedWith<UserIdSeqGenerator>().to<UserIdGenerator>()
         bind<ISequenceGenerator>().annotatedWith<ChannelIdSeqGenerator>().to<ChannelIdGenerator>()
         bind<IUserStorage>().to<SecureUserStorage>()
+        bind<IMessageStorage>().to<SecureMessageStorage>()
         bind<ITokenManager>().to<TokenManager>()
         bind<IUserManager>().to<UserManager>()
+        bind<IMessageManager>().to<MessageManager>()
         bind<IChannelManager>().to<ChannelManager>()
     }
 
