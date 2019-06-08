@@ -4,7 +4,9 @@ import il.ac.technion.cs.softwaredesign.storage.api.IStatisticsManager
 import il.ac.technion.cs.softwaredesign.storage.statistics.IStatisticsStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS
 import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS.NUMBER_OF_CHANNELS
+import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS.NUMBER_OF_CHANNEL_MESSAGES
 import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS
+import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS.NUMBER_OF_PENDING_MESSAGES
 import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,6 +28,16 @@ class StatisticsManager @Inject constructor(private val statisticsStorage: IStat
                 .thenApply {it ?: throw IllegalAccessException("should not get here, NUMBER_OF_CHANNELS is a valid key") }
     }
 
+    override fun getNumberOfPendingMessages(): CompletableFuture<Long> {
+        return statisticsStorage.getLongValue(NUMBER_OF_PENDING_MESSAGES)
+                .thenApply {it ?: throw IllegalAccessException("should not get here, NUMBER_OF_CHANNELS is a valid key") }
+    }
+
+    override fun getNumberOfChannelMessages(): CompletableFuture<Long> {
+        return statisticsStorage.getLongValue(STATISTICS_KEYS.NUMBER_OF_CHANNEL_MESSAGES)
+                .thenApply { it ?: throw IllegalAccessException("should not get here, NUMBER_OF_CHANNEL_MESSAGES is a valid key")}
+    }
+
     override fun increaseLoggedInUsersBy(count: Int): CompletableFuture<Unit> {
         return updateKeyBy(NUMBER_OF_LOGGED_IN_USERS, count)
     }
@@ -42,11 +54,29 @@ class StatisticsManager @Inject constructor(private val statisticsStorage: IStat
         return updateKeyBy(NUMBER_OF_CHANNELS, -count)
     }
 
+    override fun increaseNumberOfChannelMsgsBy(count: Int): CompletableFuture<Unit> {
+        return updateKeyBy(NUMBER_OF_CHANNEL_MESSAGES, count)
+    }
+
+    override fun decreaseNumberOfChannelMsgsBy(count: Int): CompletableFuture<Unit> {
+        return updateKeyBy(NUMBER_OF_CHANNEL_MESSAGES, -count)
+    }
+
+    override fun increaseNumberOfPendingMsgsBy(count: Int): CompletableFuture<Unit> {
+        return updateKeyBy(NUMBER_OF_PENDING_MESSAGES, count)
+    }
+
+    override fun decreaseNumberOfPendingMsgsBy(count: Int): CompletableFuture<Unit> {
+        return updateKeyBy(NUMBER_OF_PENDING_MESSAGES, -count)
+    }
+
     private fun updateKeyBy(key: String, count: Int) :CompletableFuture<Unit> {
         val oldValue =
                 when (key) {
                     NUMBER_OF_LOGGED_IN_USERS -> getLoggedInUsers()
                     NUMBER_OF_CHANNELS -> getNumberOfChannels()
+                    NUMBER_OF_CHANNEL_MESSAGES -> getNumberOfChannelMessages()
+                    NUMBER_OF_PENDING_MESSAGES -> getNumberOfPendingMessages()
                     else -> throw IllegalAccessException("Cannot increase this value, should not get here")
                 }
         return oldValue.thenCompose {statisticsStorage.setLongValue(key, it+count)  }

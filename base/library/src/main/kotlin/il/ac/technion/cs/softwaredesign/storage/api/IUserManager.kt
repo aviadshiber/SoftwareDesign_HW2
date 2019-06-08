@@ -159,7 +159,7 @@ interface IUserManager {
      * @param userId user id
      * @throws IllegalArgumentException throws if user id does not exist in the system
      */
-    fun readAllUsersMessages(userId: Long): CompletableFuture<List<Long>>
+    fun readAllChannelAndPrivateUserMessages(userId: Long): CompletableFuture<List<Long>>
 
 
     /** USER STATISTICS **/

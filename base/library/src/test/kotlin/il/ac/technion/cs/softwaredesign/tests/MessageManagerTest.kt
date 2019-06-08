@@ -20,6 +20,8 @@ class MessageManagerTest {
         statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_USERS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
         statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
         statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_CHANNELS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_CHANNEL_MESSAGES, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_PENDING_MESSAGES, STATISTICS_KEYS.INIT_INDEX_VAL).get()
         statisticsStorage.setLongValue(STATISTICS_KEYS.MAX_CHANNEL_INDEX, STATISTICS_KEYS.INIT_INDEX_VAL).get()
     }
 
@@ -104,5 +106,51 @@ class MessageManagerTest {
         }
         messageManager.decreaseMessageCounterBy(id1, 5).join()
         Assertions.assertEquals(messageManager.getMessageCounter(id1).join(), 2)
+    }
+
+    @Test
+    fun `get number of pending messages`(){
+        val id1 = messageManager.generateUniqueMessageId().join()
+        val id2 = messageManager.generateUniqueMessageId().join()
+        val id3 = messageManager.generateUniqueMessageId().join()
+        val mediaType = 0L
+        val content = "hello".toByteArray()
+        val createdTime = LocalDateTime.now()
+        val messageType = IMessageManager.MessageType.BROADCAST
+        Assertions.assertEquals(messageManager.getNumberOfPendingMessages().join(), 0)
+        messageManager.addMessage(id1, mediaType, content, createdTime, messageType, startCounter = 7).join()
+        Assertions.assertEquals(messageManager.getNumberOfPendingMessages().join(), 1)
+        messageManager.addMessage(id2, mediaType, content, createdTime, IMessageManager.MessageType.PRIVATE, startCounter = 7).join()
+        Assertions.assertEquals(messageManager.getNumberOfPendingMessages().join(), 2)
+        messageManager.addMessage(id3, mediaType, content, createdTime, IMessageManager.MessageType.CHANNEL, startCounter = 7).join()
+        Assertions.assertEquals(messageManager.getNumberOfPendingMessages().join(), 2)
+        assertThrows<IllegalArgumentException> { messageManager.addMessage(id3, mediaType, content, createdTime, IMessageManager.MessageType.CHANNEL, startCounter = 7).joinException() }
+    }
+
+    @Test
+    fun `test broadcast msgs tree`(){
+        val id1 = messageManager.generateUniqueMessageId().join()
+        val id2 = messageManager.generateUniqueMessageId().join()
+        val id3 = messageManager.generateUniqueMessageId().join()
+        val id4 = messageManager.generateUniqueMessageId().join()
+        val mediaType = 0L
+        val content = "hello".toByteArray()
+        val createdTime = LocalDateTime.now()
+        val messageType = IMessageManager.MessageType.BROADCAST
+        Assertions.assertEquals(messageManager.getAllBroadcastMessageIds().size, 0)
+        messageManager.addMessage(id1, mediaType, content, createdTime, messageType, startCounter = 7).join()
+        Assertions.assertEquals(messageManager.getAllBroadcastMessageIds(), listOf(id1))
+        messageManager.addMessage(id2, mediaType, content, createdTime, messageType, startCounter = 7).join()
+        Assertions.assertEquals(messageManager.getAllBroadcastMessageIds(), listOf(id1, id2).sorted())
+        messageManager.addMessage(id3, mediaType, content, createdTime, IMessageManager.MessageType.CHANNEL, startCounter = 7).join()
+        Assertions.assertEquals(messageManager.getAllBroadcastMessageIds(), listOf(id1, id2).sorted())
+        messageManager.addMessage(id4, mediaType, content, createdTime, IMessageManager.MessageType.PRIVATE, startCounter = 7).join()
+        Assertions.assertEquals(messageManager.getAllBroadcastMessageIds(), listOf(id1, id2).sorted())
+        messageManager.decreaseMessageCounterBy(id1, 7).join()
+        Assertions.assertEquals(messageManager.getAllBroadcastMessageIds(), listOf(id2))
+        messageManager.decreaseMessageCounterBy(id2, 5).join()
+        Assertions.assertEquals(messageManager.getAllBroadcastMessageIds(), listOf(id2))
+        messageManager.decreaseMessageCounterBy(id2, 2).join()
+        Assertions.assertEquals(messageManager.getAllBroadcastMessageIds(), emptyList<Long>())
     }
 }

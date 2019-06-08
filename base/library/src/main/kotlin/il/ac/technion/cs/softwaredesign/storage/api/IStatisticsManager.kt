@@ -23,6 +23,18 @@ interface IStatisticsManager {
     fun getNumberOfChannels() : CompletableFuture<Long>
 
     /**
+     * get number of pending messages in the system, without channel messages
+     * @return Long
+     */
+    fun getNumberOfPendingMessages() : CompletableFuture<Long>
+
+    /**
+     * get number of total channel messages in the system
+     * @return Long
+     */
+    fun getNumberOfChannelMessages() : CompletableFuture<Long>
+
+    /**
      * Increase number of logged in users in the system by [count]
      * @param count Int, increase value by count
      * @return Long, the updated value
@@ -49,4 +61,32 @@ interface IStatisticsManager {
      * @return Long, the updated value
      */
     fun decreaseNumberOfChannelsBy(count : Int = 1) :CompletableFuture<Unit>
+
+    /**
+     * Increase number of pending messages in the system by [count]
+     * @param count Int, increase value by count
+     * @return Long, the updated value
+     */
+    fun increaseNumberOfPendingMsgsBy(count: Int = 1): CompletableFuture<Unit>
+
+    /**
+     * Decrease number of pending messages in the system by [count]
+     * @param count Int, decrease value by count
+     * @return Long, the updated value
+     */
+    fun decreaseNumberOfPendingMsgsBy(count: Int = 1): CompletableFuture<Unit>
+
+    /**
+     * Increase number of channel messages in the system by [count]
+     * @param count Int, increase value by count
+     * @return Long, the updated value
+     */
+    fun increaseNumberOfChannelMsgsBy(count: Int = 1): CompletableFuture<Unit>
+
+    /**
+     * Decrease number of channel messages in the system by [count]
+     * @param count Int, decrease value by count
+     * @return Long, the updated value
+     */
+    fun decreaseNumberOfChannelMsgsBy(count: Int = 1): CompletableFuture<Unit>
 }

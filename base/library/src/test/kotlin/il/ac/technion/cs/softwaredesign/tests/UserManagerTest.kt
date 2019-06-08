@@ -25,6 +25,8 @@ class UserManagerTest {
         statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_USERS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
         statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
         statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_CHANNELS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_CHANNEL_MESSAGES, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_PENDING_MESSAGES, STATISTICS_KEYS.INIT_INDEX_VAL).get()
         statisticsStorage.setLongValue(STATISTICS_KEYS.MAX_CHANNEL_INDEX, STATISTICS_KEYS.INIT_INDEX_VAL).get()
     }
 
@@ -539,14 +541,14 @@ class UserManagerTest {
                         .thenCompose { userManager.addMessageToUser(it, msgs[1]); ImmediateFuture { it } }
                         .thenCompose { userManager.addMessageToUser(it, msgs[2]); ImmediateFuture { it } }
                         .thenCompose { userManager.addMessageToUser(it, msgs[3]); ImmediateFuture { it } }
-                        .thenCompose { userManager.readAllUsersMessages(it) }
+                        .thenCompose { userManager.readAllChannelAndPrivateUserMessages(it) }
                         .join(),
                 equalTo(msgs.sorted())
         )
 
         val id = userManager.addUser(username+username, pwd).get()
         assertThat(
-            userManager.readAllUsersMessages(id).join(),
+            userManager.readAllChannelAndPrivateUserMessages(id).join(),
                 equalTo(emptyList())
         )
 
@@ -555,18 +557,18 @@ class UserManagerTest {
                         .thenCompose { userManager.addMessageToUser(id, msgs[1]) }
                         .thenCompose { userManager.addMessageToUser(id, msgs[2]) }
                         .thenCompose { userManager.addMessageToUser(id, msgs[3]) }
-                        .thenCompose { userManager.readAllUsersMessages(id) }
+                        .thenCompose { userManager.readAllChannelAndPrivateUserMessages(id) }
                         .join(),
                 equalTo(msgs.sorted())
         )
 
         assertThat(
-                userManager.readAllUsersMessages(id).join(),
+                userManager.readAllChannelAndPrivateUserMessages(id).join(),
                 equalTo(emptyList())
         )
 
         // user does not exist
-        assertThrows<IllegalArgumentException> { userManager.readAllUsersMessages(id*100L).joinException() }
+        assertThrows<IllegalArgumentException> { userManager.readAllChannelAndPrivateUserMessages(id*100L).joinException() }
     }
 
     @Test

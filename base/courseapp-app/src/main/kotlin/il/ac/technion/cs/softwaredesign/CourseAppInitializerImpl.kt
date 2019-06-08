@@ -29,6 +29,8 @@ class CourseAppInitializerImpl
         statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_USERS.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
         statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
         statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_CHANNELS.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
+        statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_CHANNEL_MESSAGES.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
+        statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_PENDING_MESSAGES.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
         statisticsStorage.write(STATISTICS_KEYS.MAX_CHANNEL_INDEX.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
     }
 

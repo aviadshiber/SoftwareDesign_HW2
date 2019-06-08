@@ -100,4 +100,16 @@ interface IMessageManager {
      * @throws IllegalAccessException throws if message is not a broadcast
      */
     fun decreaseMessageCounterBy(msgId: Long, count: Long = 1): CompletableFuture<Unit>
+
+    /**
+     *
+     * @return CompletableFuture<Long> number of total (broadcast & private) pending messages in the system
+     */
+    fun getNumberOfPendingMessages(): CompletableFuture<Long>
+
+    /**
+     * get all valid broadcast message ids
+     * @return CompletableFuture<List<Long>>
+     */
+    fun getAllBroadcastMessageIds(): List<Long>
 }

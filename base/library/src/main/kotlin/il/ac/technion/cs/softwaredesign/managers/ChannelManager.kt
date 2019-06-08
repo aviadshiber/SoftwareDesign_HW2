@@ -219,6 +219,10 @@ class ChannelManager
     }
 
     /** CHANNEL COMPLEX STATISTICS **/
+    override fun getNumberOfTotalChannelMessages() : CompletableFuture<Long> {
+        return statisticsManager.getNumberOfChannelMessages()
+    }
+
     override fun getTop10ChannelsByUsersCount(): CompletableFuture<List<String>> {
         return getTop10FromTree(TREE_CHANNELS_BY_USERS_COUNT)
     }

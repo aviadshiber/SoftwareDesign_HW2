@@ -177,6 +177,11 @@ interface IChannelManager {
 
     /** CHANNEL COMPLEX STATISTICS **/
     /**
+     * @return total number of channel messages
+     */
+    fun getNumberOfTotalChannelMessages() : CompletableFuture<Long>
+
+    /**
      * Get a list contains 10 best channels by users count (or less than 10 if nr of total channels < 10)
      * @return List<String> of channel names
      */
