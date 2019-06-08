@@ -32,7 +32,8 @@ class MessageManager @Inject constructor(
     }
 
     override fun addMessage(id: Long, mediaType: Long, content: ByteArray, created: LocalDateTime,
-                            messageType: IMessageManager.MessageType, startCounter: Long?): CompletableFuture<Unit> {
+                            messageType: IMessageManager.MessageType,
+                            startCounter: Long?, channelId: Long?, destUserId: Long?): CompletableFuture<Unit> {
         return isMessageIdExists(id).thenCompose {
             if (it) throw IllegalArgumentException("message id already exists")
             val mediaTypeSetter = messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_MEDIA_TYPE, mediaType = mediaType)
@@ -40,12 +41,18 @@ class MessageManager @Inject constructor(
             val createsSetter = messageStorage.setTimeToId(id, MANAGERS_CONSTS.MESSAGE_CREATED_TIME, created)
             // no need to set received time because it is null
             val messageTypeSetter = messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_TYPE, messageType.ordinal.toLong())
-            val ls: List<CompletableFuture<Unit>>
+            val ls = mutableListOf(mediaTypeSetter, contentSetter, createsSetter, messageTypeSetter)
             if (messageType == IMessageManager.MessageType.BROADCAST && startCounter != null) {
                 val counterSetter = messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_COUNTER, startCounter)
-                ls = listOf(mediaTypeSetter, contentSetter, createsSetter, messageTypeSetter, counterSetter)
-            } else {
-                ls = listOf(mediaTypeSetter, contentSetter, createsSetter, messageTypeSetter)
+                ls.add(counterSetter)
+            }
+            if (messageType == IMessageManager.MessageType.CHANNEL && channelId != null) {
+                val channelIdSetter = messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_CHANNEL_ID, channelId)
+                ls.add(channelIdSetter)
+            }
+            if (messageType == IMessageManager.MessageType.PRIVATE && destUserId != null) {
+                val userIdSetter = messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_DEST_USER_ID, destUserId)
+                ls.add(userIdSetter)
             }
             Future.allAsList(ls).thenCompose {
                 if (messageType == IMessageManager.MessageType.BROADCAST)
@@ -86,6 +93,22 @@ class MessageManager @Inject constructor(
             if (it == null) throw IllegalArgumentException("message id does not exist")
             if (it != IMessageManager.MessageType.BROADCAST) throw IllegalAccessException("message is not broadcast")
             else messageStorage.getLongById(msgId, MANAGERS_CONSTS.MESSAGE_COUNTER).thenApply { counter->counter!! }
+        }
+    }
+
+    override fun getMessageChannelId(msgId: Long): CompletableFuture<Long> {
+        return getMessageType(msgId).thenCompose {
+            if (it == null) throw IllegalArgumentException("message id does not exist")
+            if (it != IMessageManager.MessageType.CHANNEL) throw IllegalAccessException("message is not channel")
+            else messageStorage.getLongById(msgId, MANAGERS_CONSTS.MESSAGE_CHANNEL_ID).thenApply { counter->counter!! }
+        }
+    }
+
+    override fun getMessageDestUserId(msgId: Long): CompletableFuture<Long> {
+        return getMessageType(msgId).thenCompose {
+            if (it == null) throw IllegalArgumentException("message id does not exist")
+            if (it != IMessageManager.MessageType.PRIVATE) throw IllegalAccessException("message is not channel")
+            else messageStorage.getLongById(msgId, MANAGERS_CONSTS.MESSAGE_DEST_USER_ID).thenApply { counter->counter!! }
         }
     }
 

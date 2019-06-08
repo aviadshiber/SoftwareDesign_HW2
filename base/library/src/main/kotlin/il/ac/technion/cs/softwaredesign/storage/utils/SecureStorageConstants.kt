@@ -31,6 +31,8 @@ object MANAGERS_CONSTS{
     const val MESSAGE_RECEIVED_TIME="received"
     const val MESSAGE_TYPE="type"
     const val MESSAGE_COUNTER="counter"
+    const val MESSAGE_CHANNEL_ID="channelId"
+    const val MESSAGE_DEST_USER_ID="destUserId"
 }
 
 object TREE_CONST {

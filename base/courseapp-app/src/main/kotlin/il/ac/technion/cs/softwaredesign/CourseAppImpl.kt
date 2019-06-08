@@ -4,6 +4,7 @@ import il.ac.technion.cs.softwaredesign.ALGORITHEMS.HASH_ALGORITHM
 import il.ac.technion.cs.softwaredesign.exceptions.*
 import il.ac.technion.cs.softwaredesign.messages.Message
 import il.ac.technion.cs.softwaredesign.storage.api.IChannelManager
+import il.ac.technion.cs.softwaredesign.storage.api.IMessageManager
 import il.ac.technion.cs.softwaredesign.storage.api.ITokenManager
 import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
 import io.github.vjames19.futures.jdk8.Future
@@ -18,7 +19,9 @@ import javax.inject.Inject
 class CourseAppImpl
 @Inject constructor(private val tokenManager: ITokenManager,
                     private val userManager: IUserManager,
-                    private val channelManager: IChannelManager) : CourseApp {
+                    private val channelManager: IChannelManager,
+                    private val messageManager: IMessageManager
+) : CourseApp {
 
     internal companion object {
         val regex: Regex = Regex("#[#_A-Za-z0-9]*")
@@ -177,7 +180,35 @@ class CourseAppImpl
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
+    /**
+     * Returns the message identified by [id], if it exists.
+     *
+     * This method is only useful for messages sent to channels.
+     *
+     * This is a *read* command.
+     *
+     * @throws InvalidTokenException If the auth [token] is invalid.
+     * @throws NoSuchEntityException If [id] does not exist or is not a channel message.
+     * @throws UserNotAuthorizedException If [id] identifies a message in a channel that the user identified by [token]
+     * is not a member of.
+     * @return The message identified by [id] along with its source.
+     */
     override fun fetchMessage(token: String, id: Long): CompletableFuture<Pair<String, Message>> {
+//        validateTokenFuture
+//                .thenCompose { messageManager.isMessageIdExists(id) }
+//                .thenCompose {
+//                    if (!it) throw NoSuchEntityException()
+//                    else {
+//                        messageManager.getMessageType(id)
+//                    }
+//                }.thenCompose {
+//                    if (it != IMessageManager.MessageType.CHANNEL) throw NoSuchEntityException()
+//                    else {
+//                        tokenManager.getUserIdByToken(token)
+//                    }
+//                }.thenCompose {
+//                    userManager.chan
+//                }
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
@@ -227,7 +258,7 @@ class CourseAppImpl
         return if (userId == null)
             throw NoSuchEntityException()
         else
-            isUserMember(userId, channelId).thenApply { if (!it) throw NoSuchEntityException() }
+            isUserMember (userId, channelId).thenApply { if (!it) throw NoSuchEntityException() }
                     .thenApply { Pair(userId, channelId) }
     }
 

@@ -30,12 +30,17 @@ interface IMessageManager {
      * @param content ByteArray, msg content
      * @param created LocalDateTime
      * @param messageType MessageType
+     * @param startCounter for broadcast messages only, initial number of users
+     * @param channelId for channel messages only, the channel id of the message
+     * @param destUserId for private messages only, the target user id
      * @throws IllegalArgumentException if id already exists in the system
      * @return CompletableFuture<Unit>
      */
     fun addMessage(id: Long, mediaType: Long, content: ByteArray, created: LocalDateTime,
-                   messageType: MessageType, startCounter: Long? = null): CompletableFuture<Unit>
+                   messageType: MessageType,
+                   startCounter: Long? = null, channelId: Long? = null, destUserId: Long? = null): CompletableFuture<Unit>
 
+    /** GETTERS & SETTERS **/
     /**
      * gets message mediaType
      * @param msgId message id
@@ -76,13 +81,31 @@ interface IMessageManager {
     fun getMessageType(msgId: Long): CompletableFuture<MessageType>
 
     /**
-     * gets message counter, i.e. number of users that hasn't been read the message
+     * gets message counter, i.e. number of users that hasn't been read the message, for BROADCAST messages only
      * @param msgId message id
      * @throws IllegalArgumentException throws if message id does not exist in the system
      * @throws IllegalAccessException throws if message is not a broadcast
      * @return message counter
      */
     fun getMessageCounter(msgId: Long): CompletableFuture<Long>
+
+    /**
+     * gets message channel id, for CHANNEL messages only
+     * @param msgId message id
+     * @throws IllegalArgumentException throws if message id does not exist in the system
+     * @throws IllegalAccessException throws if message is not a channel message
+     * @return channel id
+     */
+    fun getMessageChannelId(msgId: Long): CompletableFuture<Long>
+
+    /**
+     * gets message destination - user id, for PRIVATE messages only
+     * @param msgId message id
+     * @throws IllegalArgumentException throws if message id does not exist in the system
+     * @throws IllegalAccessException throws if message is not a private message
+     * @return destination user id
+     */
+    fun getMessageDestUserId(msgId: Long): CompletableFuture<Long>
 
     /**
      * updates a message received time
@@ -93,7 +116,7 @@ interface IMessageManager {
     fun updateMessageReceivedTime(msgId: Long, received: LocalDateTime): CompletableFuture<Unit>
 
     /**
-     * decrease message counter by count
+     * decrease message counter by count, for BROADCAST messages nly
      * @param msgId message id
      * @param count Long
      * @throws IllegalArgumentException throws if message id does not exist in the system
@@ -101,9 +124,11 @@ interface IMessageManager {
      */
     fun decreaseMessageCounterBy(msgId: Long, count: Long = 1): CompletableFuture<Unit>
 
+
+    /** STATISTICS **/
     /**
-     *
-     * @return CompletableFuture<Long> number of total (broadcast & private) pending messages in the system
+     * get number of total (broadcast & private) pending messages in the system
+     * @return CompletableFuture<Long>
      */
     fun getNumberOfPendingMessages(): CompletableFuture<Long>
 
