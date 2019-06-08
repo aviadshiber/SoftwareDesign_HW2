@@ -81,9 +81,6 @@ class CourseAppImpl
                 }
                 .thenCompose { (channelId, userId) -> addChannelToUserFuture(userId, channelId) }
                 .thenCompose { (channelId, userId) -> addMemberToChannelFuture(channelId, userId) }
-                .thenCompose { (channelId, userId) ->
-                    increaseNumberOfActiveMembersInChannelForLoggedInUser(userId, channelId)
-                }
     }
 
     override fun channelPart(token: String, channel: String): CompletableFuture<Unit> {
@@ -318,16 +315,18 @@ class CourseAppImpl
         return userManager.getUserStatus(userId)
                 .thenApply { it == IUserManager.LoginStatus.IN }
                 .thenCompose {
-                    if (it) channelManager.increaseNumberOfActiveMembersInChannelBy(channelId)
+                    if (it) {
+                        channelManager.increaseNumberOfActiveMembersInChannelBy(channelId)
+                    }
                     else ImmediateFuture { Unit }
                 }
                 .exceptionally { /* if user try to join again, its ok */ }
     }
 
-    private fun addMemberToChannelFuture(channelId: Long, userId: Long): CompletableFuture<Pair<Long, Long>> {
+    private fun addMemberToChannelFuture(channelId: Long, userId: Long): CompletableFuture<Unit> {
         return channelManager.addMemberToChannel(channelId, userId)
+                .thenCompose { increaseNumberOfActiveMembersInChannelForLoggedInUser(userId, channelId) }
                 .exceptionally { /* if user try to join again, its ok */ }
-                .thenApply { Pair(channelId, userId) }
     }
 
     private fun addChannelToUserFuture(userId: Long, channelId: Long): CompletableFuture<Pair<Long, Long>> {

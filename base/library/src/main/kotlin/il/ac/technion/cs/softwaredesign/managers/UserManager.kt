@@ -77,7 +77,6 @@ class UserManager
     override fun getUserPassword(userId: Long): CompletableFuture<String> {
         return userStorage.getPropertyStringByUserId(userId, PASSWORD_PROPERTY)
                 .thenApply { it ?: throw IllegalArgumentException("user id does not exist") }
-
     }
 
     override fun updateUserPrivilege(userId: Long, privilege: PrivilegeLevel): CompletableFuture<Unit> {

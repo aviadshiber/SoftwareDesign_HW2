@@ -287,7 +287,9 @@ class ChannelManager
             ImmediateFuture{ mutableListOf<String>()}
         }else{
             //TODO: fix after tree refactoring (remove Future init)
-            val channelIdFuture = ImmediateFuture { tree.select(lowestChannelIndex).getId() }
+            val channelIdFuture = ImmediateFuture {
+                tree.select(lowestChannelIndex).getId()
+            }
             val channelNameFuture=channelIdFuture.thenCompose { getChannelNameById(it) }
             buildTop10FromHigherToLowerListFromTree(higherChannelIndex,lowestChannelIndex+1,tree)
                     .thenCompose { list-> channelNameFuture.thenApply { name-> list.add(name); list } }
