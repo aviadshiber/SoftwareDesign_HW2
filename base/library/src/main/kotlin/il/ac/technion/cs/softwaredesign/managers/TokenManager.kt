@@ -56,19 +56,6 @@ class TokenManager @Inject constructor(private val userStorage: IUserStorage) : 
      * Generate token that does not exist in the persistent memory
      * @return String token
      */
-//    private fun generateValidUserToken(): String {
-//        var token: String
-//        var it = 0
-//        do {
-//            token = generateUserToken()
-//            if (it > 30) {
-//                break
-//            }
-//            it += 1
-//        } while (!isTokenUnique(token)) //TODO: fix
-//        return token
-//    }
-
     private fun generateValidUserToken(): CompletableFuture<String> {
         val token = generateUserToken()
         return isTokenUnique(token).thenCompose {
