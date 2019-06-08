@@ -14,7 +14,7 @@ interface IMessageManager {
     /**
      * get a unique message id
      */
-    fun getUniqueMessageId(): CompletableFuture<Long>
+    fun generateUniqueMessageId(): CompletableFuture<Long>
 
     /**
      * return true if message id exists and false otherwise
@@ -29,13 +29,12 @@ interface IMessageManager {
      * @param mediaType Long (according enum mediaType)
      * @param content ByteArray, msg content
      * @param created LocalDateTime
-     * @param received LocalDateTime
      * @param messageType MessageType
      * @throws IllegalArgumentException if id already exists in the system
      * @return CompletableFuture<Unit>
      */
     fun addMessage(id: Long, mediaType: Long, content: ByteArray, created: LocalDateTime,
-                   received: LocalDateTime, messageType: MessageType): CompletableFuture<Unit>
+                   messageType: MessageType): CompletableFuture<Unit>
 
     /**
      * gets message mediaType
@@ -64,10 +63,9 @@ interface IMessageManager {
     /**
      * gets message received time
      * @param msgId message id
-     * @throws IllegalArgumentException throws if message id does not exist in the system
-     * @return message received time
+     * @return message received time or null if it has'nt been set
      */
-    fun getMessageReceivedTime(msgId: Long): CompletableFuture<LocalDateTime>
+    fun getMessageReceivedTime(msgId: Long): CompletableFuture<LocalDateTime?>
 
     /**
      * gets message type
@@ -76,14 +74,6 @@ interface IMessageManager {
      * @return message type
      */
     fun getMessageType(msgId: Long): CompletableFuture<MessageType>
-
-    /**
-     * updates a message created time
-     * @param msgId message id
-     * @param created created time
-     * @throws IllegalArgumentException throws if message id does not exist in the system
-     */
-    fun updateMessageCreatedTime(msgId: Long, created: LocalDateTime): CompletableFuture<Unit>
 
     /**
      * updates a message received time

@@ -13,7 +13,7 @@ class MessageManager @Inject constructor(
         @UserIdSeqGenerator private val messageIdSeqGenerator: ISequenceGenerator, // user id seq generator and msg seq generator should be the same one
         private val messageStorage: IMessageStorage
 ) : IMessageManager {
-    override fun getUniqueMessageId(): CompletableFuture<Long> {
+    override fun generateUniqueMessageId(): CompletableFuture<Long> {
         return messageIdSeqGenerator.next()
     }
 
@@ -22,13 +22,14 @@ class MessageManager @Inject constructor(
     }
 
     override fun addMessage(id: Long, mediaType: Long, content: ByteArray, created: LocalDateTime,
-                            received: LocalDateTime, messageType: IMessageManager.MessageType): CompletableFuture<Unit> {
+                            messageType: IMessageManager.MessageType): CompletableFuture<Unit> {
         val mediaTypeSetter=messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_MEDIA_TYPE, mediaType = mediaType)
         val contentSetter=messageStorage.setByteArrayToId(id, MANAGERS_CONSTS.MESSAGE_CONTENTS, content)
         val createsSetter=messageStorage.setTimeToId(id, MANAGERS_CONSTS.MESSAGE_CREATED_TIME, created)
-        val receivedSetter=messageStorage.setTimeToId(id, MANAGERS_CONSTS.MESSAGE_RECEIVED_TIME, received)
+        //val receivedSetter=messageStorage.setTimeToId(id, MANAGERS_CONSTS.MESSAGE_RECEIVED_TIME, received)
+        // no need to set received time because it is null
         val messageTypeSetter=messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_TYPE, messageType.ordinal.toLong())
-        val ls= listOf(mediaTypeSetter,contentSetter,createsSetter,receivedSetter,messageTypeSetter)
+        val ls= listOf(mediaTypeSetter,contentSetter,createsSetter,messageTypeSetter)
         return Future.allAsList(ls).thenApply { Unit }
     }
 
@@ -47,19 +48,14 @@ class MessageManager @Inject constructor(
                 .thenApply { it ?: throw IllegalArgumentException("message id does not exist") }
     }
 
-    override fun getMessageReceivedTime(msgId: Long): CompletableFuture<LocalDateTime> {
+    override fun getMessageReceivedTime(msgId: Long): CompletableFuture<LocalDateTime?> {
         return messageStorage.getTimeById(msgId, MANAGERS_CONSTS.MESSAGE_RECEIVED_TIME)
-                .thenApply { it ?: throw IllegalArgumentException("message id does not exist") }
     }
 
     override fun getMessageType(msgId: Long): CompletableFuture<IMessageManager.MessageType> {
         return messageStorage.getLongById(msgId, MANAGERS_CONSTS.MESSAGE_TYPE)
                 .thenApply { it ?: throw IllegalArgumentException("message id does not exist") }
                 .thenApply { IMessageManager.MessageType.values()[it.toInt()] }
-    }
-
-    override fun updateMessageCreatedTime(msgId: Long, created: LocalDateTime): CompletableFuture<Unit> {
-        return messageStorage.setTimeToId(msgId, MANAGERS_CONSTS.MESSAGE_CREATED_TIME, created)
     }
 
     override fun updateMessageReceivedTime(msgId: Long, received: LocalDateTime): CompletableFuture<Unit> {
