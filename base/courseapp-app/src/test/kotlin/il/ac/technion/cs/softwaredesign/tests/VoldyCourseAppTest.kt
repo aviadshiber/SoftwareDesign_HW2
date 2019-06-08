@@ -98,7 +98,7 @@ class VoldyCourseAppTest {
         val token = courseApp.login(username, password).get()
 
         courseApp.logout(token).get()
-        assertThrows<InvalidTokenException> { courseApp.logout(token).get() }
+        assertThrows<InvalidTokenException> { courseApp.logout(token).joinException() }
     }
 
     @Test
@@ -334,7 +334,7 @@ class VoldyCourseAppTest {
 
         createUserAndChannel(channel)
 
-        assertThrows<InvalidTokenException> { courseApp.channelMakeOperator(token, channel, username) }
+        assertThrows<InvalidTokenException> { courseApp.channelMakeOperator(token, channel, username).joinException() }
     }
 
     @Test
@@ -569,7 +569,7 @@ class VoldyCourseAppTest {
 
         createUserAndChannel(channel)
 
-        assertThrows<InvalidTokenException> { courseApp.isUserInChannel(token, channel, username).get() }
+        assertThrows<InvalidTokenException> { courseApp.isUserInChannel(token, channel, username).joinException() }
     }
 
     @Test
@@ -600,7 +600,7 @@ class VoldyCourseAppTest {
         courseApp.channelJoin(token, channel).get()
         assertThat(courseApp.isUserInChannel(token, channel, username).get(), equalTo(true))
         courseApp.channelPart(token, channel).get()
-        assertThrows<NoSuchEntityException> { courseApp.isUserInChannel(token, channel, username).get() }
+        assertThrows<NoSuchEntityException> { courseApp.isUserInChannel(token, channel, username).joinException() }
     }
 
     @Test
@@ -615,7 +615,7 @@ class VoldyCourseAppTest {
         courseApp.channelJoin(token, channel).get()
         assertThat(courseApp.isUserInChannel(token, channel, username).get(), equalTo(true))
         courseApp.channelKick(token, channel, username).get()
-        assertThrows<NoSuchEntityException> { courseApp.isUserInChannel(token, channel, username).get() }
+        assertThrows<NoSuchEntityException> { courseApp.isUserInChannel(token, channel, username).joinException() }
     }
 
     @Test
