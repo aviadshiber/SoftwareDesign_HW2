@@ -14,6 +14,7 @@ import il.ac.technion.cs.softwaredesign.storage.users.IUserStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.INVALID_USER_ID
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.LIST_PROPERTY
+import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.MESSAGE_INVALID_ID
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.PASSWORD_PROPERTY
 import io.github.vjames19.futures.jdk8.Future
 import io.github.vjames19.futures.jdk8.ImmediateFuture
@@ -81,6 +82,11 @@ class UserManager
                 .thenApply { it ?: throw IllegalArgumentException("user id does not exist") }
     }
 
+    override fun getUserLastReadMsgId(userId: Long): CompletableFuture<Long> {
+        return userStorage.getPropertyLongByUserId(userId, MANAGERS_CONSTS.LAST_READ_MSG_ID_PROPERTY)
+                .thenApply { it ?: throw IllegalArgumentException("user id does not exist") }
+    }
+
     override fun updateUserPrivilege(userId: Long, privilege: PrivilegeLevel): CompletableFuture<Unit> {
         return userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.PRIVILEGE_PROPERTY, privilege.ordinal.toString())
     }
@@ -101,6 +107,9 @@ class UserManager
         }.exceptionally {/* user id does not exist, do nothing */  }
     }
 
+    override fun updateUserLastReadMsgId(userId: Long, msgId: Long): CompletableFuture<Unit> {
+        return userStorage.setPropertyLongToUserId(userId, MANAGERS_CONSTS.LAST_READ_MSG_ID_PROPERTY, msgId)
+    }
 
     override fun isUsernameExists(username: String): CompletableFuture<Boolean> {
         return userStorage.getUserIdByUsername(username)
@@ -250,8 +259,9 @@ class UserManager
         val usernamePropertySetterFuture=userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.USERNAME_PROPERTY, username)
         val passwordPropertySetterFuture=userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.PASSWORD_PROPERTY, password)
         val statusPropertySetterFuture=userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.STATUS_PROPERTY, status.ordinal.toString())
-        val privilegePropertySetterFuture= userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.PRIVILEGE_PROPERTY, privilege.ordinal.toString())
-        val ls= listOf(usernamePropertySetterFuture,passwordPropertySetterFuture,statusPropertySetterFuture,privilegePropertySetterFuture)
+        val privilegePropertySetterFuture=userStorage.setPropertyStringToUserId(userId, MANAGERS_CONSTS.PRIVILEGE_PROPERTY, privilege.ordinal.toString())
+        val lastMsgIdPropertySetterFuture=userStorage.setPropertyLongToUserId(userId, MANAGERS_CONSTS.LAST_READ_MSG_ID_PROPERTY, MESSAGE_INVALID_ID)
+        val ls= listOf(usernamePropertySetterFuture,passwordPropertySetterFuture,statusPropertySetterFuture,privilegePropertySetterFuture,lastMsgIdPropertySetterFuture)
         return Future.allAsList(ls).map { userId }
     }
 }

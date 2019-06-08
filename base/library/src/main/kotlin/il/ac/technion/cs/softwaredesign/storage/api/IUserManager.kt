@@ -59,25 +59,40 @@ interface IUserManager {
 
     /**
      * Get the password of the given user id
-     * @param userId String
+     * @param userId user id
      * @throws IllegalArgumentException if user id does not exist in the system
      * @return String - the password if username exists
      */
     fun getUserPassword(userId: Long) : CompletableFuture<String>
 
     /**
+     * Get the last message id the user wes read
+     * @param userId user id
+     * @throws IllegalArgumentException if user id does not exist in the system
+     * @return Long - the msg id
+     */
+    fun getUserLastReadMsgId(userId: Long) : CompletableFuture<Long>
+
+    /**
      * updates a user privilege
-     * @param userId String the user name of the user
+     * @param userId user id
      * @param privilege privilege of the user
      */
     fun updateUserPrivilege(userId: Long, privilege: PrivilegeLevel): CompletableFuture<Unit>
 
     /**
      * updates a user privilege
-     * @param userId String the user name of the user
+     * @param userId user id
      * @param status status of the user
      */
     fun updateUserStatus(userId:Long, status: LoginStatus): CompletableFuture<Unit>
+
+    /**
+     * updates the last msg that the user was read
+     * @param userId user id
+     * @param msgId msg id of the message
+     */
+    fun updateUserLastReadMsgId(userId:Long, msgId: Long): CompletableFuture<Unit>
 
 
     /**
@@ -89,7 +104,7 @@ interface IUserManager {
 
     /**
      * Check if user id already exist in the system
-     * @param userId String
+     * @param userId user id
      * @return Boolean - true if exist, false if not
      */
     fun isUserIdExists(userId : Long) : CompletableFuture<Boolean>

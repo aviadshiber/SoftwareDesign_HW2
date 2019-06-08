@@ -10,6 +10,7 @@ object MANAGERS_CONSTS{
     const val PASSWORD_PROPERTY="password"
     const val STATUS_PROPERTY="status"
     const val PRIVILEGE_PROPERTY="privilage"
+    const val LAST_READ_MSG_ID_PROPERTY="last_read"
 
     const val LIST_PROPERTY="list"
     const val SIZE_PROPERTY="size"

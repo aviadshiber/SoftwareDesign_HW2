@@ -15,7 +15,6 @@ class SecureUserStorage @Inject constructor(
         @MemberIdStorage private val userIdStorage: SecureStorage,
         @MemberDetailsStorage private val userDetailsStorage: SecureStorage,
         @AuthenticationStorage private val tokenStorage: SecureStorage) : IUserStorage {
-
     override fun getUserIdByUsername(usernameKey: String): CompletableFuture<Long?> {
         return userIdStorage.read(usernameKey.toByteArray()).thenApply { userId ->
             if (userId == null) null // if username does not exist

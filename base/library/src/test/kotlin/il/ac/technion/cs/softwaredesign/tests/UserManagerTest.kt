@@ -10,6 +10,7 @@ import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
 import il.ac.technion.cs.softwaredesign.storage.SecureStorageFactory
 import il.ac.technion.cs.softwaredesign.storage.statistics.IStatisticsStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES
+import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS
 import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST
 import io.github.vjames19.futures.jdk8.Future
@@ -597,5 +598,38 @@ class UserManagerTest {
 
         // user does not exist
         assertThrows<IllegalArgumentException> { userManager.readAllUsersMessages(id*100L).joinException() }
+    }
+
+    @Test
+    fun `check last read msg id`() {
+        val username="username"
+        val pwd = "27dS@@sx1"
+        val msgIds = listOf<Long>(123L, 15L, 288L, 45L)
+
+        assertThat(
+                userManager.addUser(username, pwd)
+                        .thenCompose { userManager.getUserLastReadMsgId(it) }
+                        .join(),
+                equalTo(MANAGERS_CONSTS.MESSAGE_INVALID_ID)
+        )
+
+        assertThat(
+                userManager.addUser(username+username, pwd)
+                        .thenCompose { userId -> userManager.updateUserLastReadMsgId(userId, msgId = msgIds[0]).thenApply { userId }}
+                        .thenCompose { userManager.getUserLastReadMsgId(it) }
+                        .join(),
+                equalTo(msgIds[0])
+        )
+
+        assertThat(
+                userManager.addUser(username+username+username, pwd)
+                        .thenCompose { userId -> userManager.updateUserLastReadMsgId(userId, msgId = msgIds[0]).thenApply { userId }}
+                        .thenCompose { userId -> userManager.updateUserLastReadMsgId(userId, msgId = msgIds[3]).thenApply { userId }}
+                        .thenCompose { userId -> userManager.updateUserLastReadMsgId(userId, msgId = msgIds[3]).thenApply { userId }}
+                        .thenCompose { userId -> userManager.updateUserLastReadMsgId(userId, msgId = msgIds[2]).thenApply { userId }}
+                        .thenCompose { userManager.getUserLastReadMsgId(it) }
+                        .join(),
+                equalTo(msgIds[2])
+        )
     }
 }
