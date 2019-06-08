@@ -3,8 +3,8 @@ package il.ac.technion.cs.softwaredesign.managers
 import il.ac.technion.cs.softwaredesign.internals.ISequenceGenerator
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.api.IChannelManager
-import il.ac.technion.cs.softwaredesign.storage.channels.IChannelStorage
 import il.ac.technion.cs.softwaredesign.storage.api.IStatisticsManager
+import il.ac.technion.cs.softwaredesign.storage.channels.IChannelStorage
 import il.ac.technion.cs.softwaredesign.storage.datastructures.CountIdKey
 import il.ac.technion.cs.softwaredesign.storage.datastructures.SecureAVLTree
 import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES.TREE_CHANNELS_BY_ACTIVE_USERS_COUNT
@@ -315,7 +315,7 @@ class ChannelManager
     }
 
     private fun increaseNumberOfChannelsFuture(id: Long): CompletableFuture<Long> {
-        statisticsManager.increaseNumberOfChannelsBy(); return ImmediateFuture { id }
+        return statisticsManager.increaseNumberOfChannelsBy().thenApply { id }
     }
 
     /**
