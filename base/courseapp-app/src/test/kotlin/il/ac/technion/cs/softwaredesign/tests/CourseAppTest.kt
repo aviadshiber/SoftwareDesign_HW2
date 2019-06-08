@@ -715,7 +715,7 @@ class CourseAppTest{
 
     @Test
     fun makeAdminTest() {
-       val admin= courseApp.login("admin","admin").join()
+        val admin= courseApp.login("admin","admin").join()
         val aviad=courseApp.login("aviad","aviad123").join()
         val ron=courseApp.login("ron","ron123").join()
 

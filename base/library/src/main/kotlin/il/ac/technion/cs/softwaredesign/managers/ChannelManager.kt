@@ -30,7 +30,7 @@ class ChannelManager
                     @ChannelIdSeqGenerator private val channelIdGenerator: ISequenceGenerator,
                     @ChannelByUserCountStorage private val channelsByUsersCountStorage: SecureStorage,
                     @ChannelByActiveUserCountStorage private val channelsByActiveUsersCountStorage: SecureStorage,
-                    @ChannelByMsgCountStorage private val channelByMsgCountStorage: SecureStorage,
+                    //@ChannelByMsgCountStorage private val channelByMsgCountStorage: SecureStorage,
                     @ChannelMessagesTreesStorage private val channelMessagesTreesStorage: SecureStorage
 ) : IChannelManager {
     private val defaultCountIdKey: () -> CountIdKey = { CountIdKey() }
