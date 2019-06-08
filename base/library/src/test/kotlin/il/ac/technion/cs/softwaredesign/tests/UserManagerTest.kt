@@ -24,16 +24,6 @@ class UserManagerTest {
 
     private val userManager = injector.getInstance<IUserManager>()
 
-    private fun initTrees() {
-        val factory = injector.getInstance<SecureStorageFactory>()
-        val s1 = factory.open(DB_NAMES.TREE_USERS_BY_CHANNELS_COUNT.toByteArray()).get()
-        val s2 = factory.open(DB_NAMES.TREE_CHANNELS_BY_ACTIVE_USERS_COUNT.toByteArray()).get()
-        val s3 = factory.open(DB_NAMES.TREE_CHANNELS_BY_USERS_COUNT.toByteArray()).get()
-        s1.write(TREE_CONST.ROOT_KEY.toByteArray(), Longs.toByteArray(TREE_CONST.ROOT_INIT_INDEX)).get()
-        s2.write(TREE_CONST.ROOT_KEY.toByteArray(), Longs.toByteArray(TREE_CONST.ROOT_INIT_INDEX)).get()
-        s3.write(TREE_CONST.ROOT_KEY.toByteArray(), Longs.toByteArray(TREE_CONST.ROOT_INIT_INDEX)).get()
-    }
-
     private fun initStatistics() {
         val statisticsStorage = injector.getInstance<IStatisticsStorage>()
         statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_USERS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
@@ -45,7 +35,6 @@ class UserManagerTest {
     @BeforeEach
     private fun init() {
         initStatistics()
-        //initTrees()
     }
 
     @Test
@@ -566,5 +555,47 @@ class UserManagerTest {
         for ((k, userId) in outputIds.withIndex()) {
             assertThat(userId, equalTo(ids[k]))
         }
+    }
+
+    @Test
+    fun `add message to user`() {
+        val username="username"
+        val pwd = "27dS@@sx1"
+        val msgs = listOf<Long>(123L, 15L, 288L, 45L)
+
+        assertThat(
+                userManager.addUser(username, pwd)
+                        .thenCompose { userManager.addMessageToUser(it, msgs[0]); ImmediateFuture { it } }
+                        .thenCompose { userManager.addMessageToUser(it, msgs[1]); ImmediateFuture { it } }
+                        .thenCompose { userManager.addMessageToUser(it, msgs[2]); ImmediateFuture { it } }
+                        .thenCompose { userManager.addMessageToUser(it, msgs[3]); ImmediateFuture { it } }
+                        .thenCompose { userManager.readAllUsersMessages(it) }
+                        .join(),
+                equalTo(msgs.sorted())
+        )
+
+        val id = userManager.addUser(username+username, pwd).get()
+        assertThat(
+            userManager.readAllUsersMessages(id).join(),
+                equalTo(emptyList())
+        )
+
+        assertThat(
+                    userManager.addMessageToUser(id, msgs[0])
+                        .thenCompose { userManager.addMessageToUser(id, msgs[1]) }
+                        .thenCompose { userManager.addMessageToUser(id, msgs[2]) }
+                        .thenCompose { userManager.addMessageToUser(id, msgs[3]) }
+                        .thenCompose { userManager.readAllUsersMessages(id) }
+                        .join(),
+                equalTo(msgs.sorted())
+        )
+
+        assertThat(
+                userManager.readAllUsersMessages(id).join(),
+                equalTo(emptyList())
+        )
+
+        // user does not exist
+        assertThrows<IllegalArgumentException> { userManager.readAllUsersMessages(id*100L).joinException() }
     }
 }
