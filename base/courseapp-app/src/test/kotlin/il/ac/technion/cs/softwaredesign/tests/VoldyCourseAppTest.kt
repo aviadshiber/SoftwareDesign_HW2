@@ -109,7 +109,7 @@ class VoldyCourseAppTest {
         val token = courseApp.login(username, password).get()
 
         courseApp.logout(token).get()
-        assertThrows<InvalidTokenException> { courseApp.isUserLoggedIn(token, username).get() }
+        assertThrows<InvalidTokenException> { courseApp.isUserLoggedIn(token, username).joinException() }
     }
 
     @Test
@@ -121,7 +121,7 @@ class VoldyCourseAppTest {
         val token = courseApp.login(username1, password).get()
 
         courseApp.logout(token).get()
-        assertThrows<InvalidTokenException> { courseApp.isUserLoggedIn(token, username2).get() }
+        assertThrows<InvalidTokenException> { courseApp.isUserLoggedIn(token, username2).joinException() }
     }
 
     @Test
@@ -134,7 +134,7 @@ class VoldyCourseAppTest {
         courseApp.login(username2, password).get()
         courseApp.logout(token).get()
 
-        assertThrows<InvalidTokenException> { courseApp.isUserLoggedIn(token, username2).get() }
+        assertThrows<InvalidTokenException> { courseApp.isUserLoggedIn(token, username2).joinException() }
     }
 
     @Test
@@ -147,7 +147,7 @@ class VoldyCourseAppTest {
         courseApp.logout(courseApp.login(username2, password).get()).get()
         courseApp.logout(token).get()
 
-        assertThrows<InvalidTokenException> { courseApp.isUserLoggedIn(token, username2).get() }
+        assertThrows<InvalidTokenException> { courseApp.isUserLoggedIn(token, username2).joinException() }
     }
 
     @Test
@@ -202,7 +202,7 @@ class VoldyCourseAppTest {
         val username2 = "user2"
         val token = courseApp.login(username1, password1).get()
 
-        assertThrows<NoSuchEntityException> { courseApp.makeAdministrator(token, username2).get() }
+        assertThrows<NoSuchEntityException> { courseApp.makeAdministrator(token, username2).joinException() }
     }
 
     // TODO: test exceptions order
@@ -224,7 +224,7 @@ class VoldyCourseAppTest {
 
         courseApp.logout(token).get()
 
-        assertThrows<InvalidTokenException> { courseApp.channelJoin(token, channel).get() }
+        assertThrows<InvalidTokenException> { courseApp.channelJoin(token, channel).joinException() }
     }
 
     @Test
