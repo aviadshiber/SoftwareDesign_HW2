@@ -10,6 +10,7 @@ import il.ac.technion.cs.softwaredesign.storage.datastructures.IdKey
 import il.ac.technion.cs.softwaredesign.storage.datastructures.SecureAVLTree
 import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES.TREE_CHANNELS_BY_ACTIVE_USERS_COUNT
 import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES.TREE_CHANNELS_BY_USERS_COUNT
+import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES.TREE_CHANNELS_MSG_COUNT
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.CHANNEL_INVALID_ID
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.CHANNEL_INVALID_NAME
@@ -29,12 +30,14 @@ class ChannelManager
                     @ChannelIdSeqGenerator private val channelIdGenerator: ISequenceGenerator,
                     @ChannelByUserCountStorage private val channelsByUsersCountStorage: SecureStorage,
                     @ChannelByActiveUserCountStorage private val channelsByActiveUsersCountStorage: SecureStorage,
+                    @ChannelByMsgCountStorage private val channelByMsgCountStorage: SecureStorage,
                     @ChannelMessagesTreesStorage private val channelMessagesTreesStorage: SecureStorage
 ) : IChannelManager {
     private val defaultCountIdKey: () -> CountIdKey = { CountIdKey() }
     private val defaultIdKey: () -> IdKey = { IdKey() }
     private val channelsByUsersCountTree = SecureAVLTree(channelsByUsersCountStorage, defaultCountIdKey)
     private val channelsByActiveUsersCountTree = SecureAVLTree(channelsByActiveUsersCountStorage, defaultCountIdKey)
+    private val channelsMsgsCountTree = SecureAVLTree(channelMessagesTreesStorage, defaultCountIdKey)
 
     override fun addChannel(channelName: String): CompletableFuture<Long> {
         return getNextChannelIdFuture(channelName).thenCompose { channelId-> propertiesSetterFuture(channelId,channelName) }
@@ -51,9 +54,10 @@ class ChannelManager
             val channelIdSetterFuture= channelStorage.setPropertyStringToChannelId(channelId, CHANNEL_NAME_PROPERTY, channelName)
             val channelNumberSetterFuture=channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS, 0L)
             val channelActiveNumberSetterFuture= channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_ACTIVE_MEMBERS, 0L)
+            val channelNumberOfMsgsSetterFuture= channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MESSAGES, 0L)
             val channelMemberListFuture= channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_MEMBERS_LIST, emptyList())
             val channelOperatorListFuture= channelStorage.setPropertyListToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_OPERATORS_LIST, emptyList())
-            val futures= listOf(channelNameSetterFuture,channelIdSetterFuture,channelNumberSetterFuture,channelActiveNumberSetterFuture,channelMemberListFuture,channelOperatorListFuture)
+            val futures= listOf(channelNameSetterFuture,channelIdSetterFuture,channelNumberSetterFuture,channelActiveNumberSetterFuture,channelNumberOfMsgsSetterFuture,channelMemberListFuture,channelOperatorListFuture)
             return Future.allAsList(futures).thenApply { channelId }
     }
 
@@ -100,11 +104,17 @@ class ChannelManager
 
     /** CHANNEL MESSAGES **/
     override fun addMessageToChannel(channelId: Long, msgId: Long): CompletableFuture<Unit> {
-        return isChannelIdExists(channelId).thenApply {
-            if (!it) Unit
+        return isChannelIdExists(channelId).thenCompose {
+            if (!it) ImmediateFuture{Unit}
             else {
                 val channelMessagesTree = SecureAVLTree(channelMessagesTreesStorage, defaultIdKey, channelId)
-                channelMessagesTree.put(IdKey(msgId))
+                val key = IdKey(msgId)
+                if (channelMessagesTree[key]!=null) ImmediateFuture{Unit}
+                else {
+                    //increase number of messages
+                    channelMessagesTree.put(key)
+                    increaseNumberOfMsgsInChannelByOne(channelId)
+                }
             }
         }
     }
@@ -117,6 +127,24 @@ class ChannelManager
                 channelMessagesTree[IdKey(msgId)] != null
             }
         }
+    }
+
+    private fun increaseNumberOfMsgsInChannelByOne(channelId: Long): CompletableFuture<Unit> {
+        return validateChannelIdFuture(channelId).thenCompose { getNumberOfMsgsInChannel(channelId) }
+                .thenCompose {currentValue->
+                    val newValue=1L+currentValue
+                    val nextValue= Pair(currentValue, newValue)
+                    channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS, newValue).thenApply { nextValue }
+                }.thenApply {
+                    (currentValue, newValue)->
+                    updateKeyInTree(TREE_CHANNELS_MSG_COUNT, channelId, currentValue, newValue)
+                }
+    }
+
+    override fun getNumberOfMsgsInChannel(channelId: Long): CompletableFuture<Long> {
+        return validateChannelIdFuture(channelId).thenCompose {
+            channelStorage.getPropertyLongByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS) }
+                .thenApply { it ?: throw IllegalArgumentException("channel id is valid but returned null") }
     }
 
 
@@ -197,6 +225,10 @@ class ChannelManager
 
     override fun getTop10ChannelsByActiveUsersCount(): CompletableFuture<List<String>> {
         return getTop10FromTree(TREE_CHANNELS_BY_ACTIVE_USERS_COUNT)
+    }
+
+    override fun getTop10ChannelsByMsgsCount(): CompletableFuture<List<String>> {
+        return getTop10FromTree(TREE_CHANNELS_MSG_COUNT)
     }
 
     /** PRIVATES **/
@@ -357,6 +389,7 @@ class ChannelManager
         return when (treeName) {
             TREE_CHANNELS_BY_USERS_COUNT -> channelsByUsersCountTree
             TREE_CHANNELS_BY_ACTIVE_USERS_COUNT -> channelsByActiveUsersCountTree
+            TREE_CHANNELS_MSG_COUNT -> channelsMsgsCountTree
             else -> throw IllegalAccessException("tree does not exist, should not get here")
         }
     }

@@ -681,10 +681,12 @@ class ChannelManagerTest {
         )
 
         val id = channelManager.addChannel(channelname+channelname).get()
+        assertThat(channelManager.getNumberOfMsgsInChannel(id).join(), equalTo(0L))
         assertThat(channelManager.isMessageInChannel(id, msgs[0]).join(), isFalse)
         assertThat(channelManager.isMessageInChannel(id, msgs[1]).join(), isFalse)
         assertThat(channelManager.isMessageInChannel(id, msgs[2]).join(), isFalse)
         assertThat(channelManager.isMessageInChannel(id, msgs[3]).join(), isFalse)
+        assertThat(channelManager.getNumberOfMsgsInChannel(id).join(), equalTo(0L))
 
         channelManager.addMessageToChannel(id, msgs[0])
             .thenCompose { channelManager.addMessageToChannel(id, msgs[1])}
@@ -692,6 +694,8 @@ class ChannelManagerTest {
             .thenCompose { channelManager.addMessageToChannel(id, msgs[3])}
             .thenCompose { channelManager.isMessageInChannel(id, msgs[0]) }
             .join()
+
+        assertThat(channelManager.getNumberOfMsgsInChannel(id).join(), equalTo(4L))
 
         assertThat(channelManager.isMessageInChannel(id, msgs[0]).join(), isTrue)
         assertThat(channelManager.isMessageInChannel(id, msgs[1]).join(), isTrue)
@@ -701,5 +705,60 @@ class ChannelManagerTest {
 
         // channel does not exist
         assertThrows<IllegalArgumentException> { channelManager.isMessageInChannel(id*100L, msgs[0]).joinException() }
+        assertThrows<IllegalArgumentException> { channelManager.getNumberOfMsgsInChannel(id*100L).joinException() }
+    }
+
+    @Test
+    fun `check channels by msg count tree`() {
+        val channelname="#chanelname"
+        val msgs = listOf<Long>(123L, 15L, 288L, 45L, 483L)
+        val expected = listOf<String>(channelname, channelname+channelname)
+
+        val id1 = channelManager.addChannel(expected[0]).join()
+        channelManager.addMessageToChannel(id1, msgs[0])
+            .thenCompose { channelManager.addMessageToChannel(id1, msgs[1])}
+            .thenCompose { channelManager.addMessageToChannel(id1, msgs[2])}
+            .thenCompose { channelManager.addMessageToChannel(id1, msgs[3])}
+            .thenCompose { channelManager.isMessageInChannel(id1, msgs[2]) }
+            .join()
+
+        val id2 = channelManager.addChannel(expected[1]).join()
+        channelManager.addMessageToChannel(id2, msgs[0])
+                .thenCompose { channelManager.addMessageToChannel(id2, msgs[1])}
+                .thenCompose { channelManager.addMessageToChannel(id2, msgs[2])}
+                .thenCompose { channelManager.isMessageInChannel(id2, msgs[2]) }
+                .join()
+
+        var output = channelManager.getTop10ChannelsByMsgsCount().join()
+        assertThat(output[0], equalTo(expected[0]))
+        assertThat(output[1], equalTo(expected[1]))
+
+        channelManager.addMessageToChannel(id2, msgs[0])
+                .thenCompose { channelManager.addMessageToChannel(id2, msgs[1])}
+                .thenCompose { channelManager.addMessageToChannel(id2, msgs[2])}
+                .thenCompose { channelManager.isMessageInChannel(id2, msgs[2]) }
+                .join()
+
+        output = channelManager.getTop10ChannelsByMsgsCount().join()
+        assertThat(output[0], equalTo(expected[0]))
+        assertThat(output[1], equalTo(expected[1]))
+
+        channelManager.addMessageToChannel(id2, msgs[3])
+
+        output = channelManager.getTop10ChannelsByMsgsCount().join()
+        assertThat(output[0], equalTo(expected[0]))
+        assertThat(output[1], equalTo(expected[1]))
+
+        channelManager.addMessageToChannel(id2, msgs[4])
+
+        output = channelManager.getTop10ChannelsByMsgsCount().join()
+        assertThat(output[0], equalTo(expected[1]))
+        assertThat(output[1], equalTo(expected[0]))
+
+        channelManager.addMessageToChannel(id1, msgs[4])
+
+        output = channelManager.getTop10ChannelsByMsgsCount().join()
+        assertThat(output[0], equalTo(expected[0]))
+        assertThat(output[1], equalTo(expected[1]))
     }
 }

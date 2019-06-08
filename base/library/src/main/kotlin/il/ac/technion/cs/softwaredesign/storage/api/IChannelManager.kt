@@ -73,6 +73,14 @@ interface IChannelManager {
      */
     fun isMessageInChannel(channelId: Long, msgId: Long): CompletableFuture<Boolean>
 
+    /**
+     * Get the number of total messages in a specific channel
+     * @param channelId Long
+     * @throws IllegalArgumentException throws if channel id does not exist in the system
+     * @return Long, number of total messages
+     */
+    fun getNumberOfMsgsInChannel(channelId : Long) : CompletableFuture<Long>
+
 
     /** NUMBER OF ACTIVE MEMBERS **/
     /** this property should be updated regardless members list updates **/
@@ -179,4 +187,10 @@ interface IChannelManager {
      * @return List<String> of channel names
      */
     fun getTop10ChannelsByActiveUsersCount() : CompletableFuture<List<String>>
+
+    /**
+     * Get a list contains 10 best channels by message count (or less than 10 if nr of total channels < 10)
+     * @return List<String> of channel names
+     */
+    fun getTop10ChannelsByMsgsCount(): CompletableFuture<List<String>>
 }

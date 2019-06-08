@@ -17,6 +17,7 @@ object MANAGERS_CONSTS{
 
     const val CHANNEL_NAME_PROPERTY="channel_name"
     const val CHANNEL_NR_ACTIVE_MEMBERS="nr_active_members"
+    const val CHANNEL_NR_MESSAGES="nr_msgs"
     const val CHANNEL_NR_MEMBERS="nr_members"
     const val CHANNEL_MEMBERS_LIST="members_list"
     const val CHANNEL_OPERATORS_LIST="operators_list"
@@ -45,6 +46,7 @@ object DB_NAMES {
     internal const val TREE_USERS_BY_CHANNELS_COUNT="USERS_BY_CHANNELS_COUNT"
     internal const val TREE_CHANNELS_BY_USERS_COUNT="CHANNELS_BY_USERS_COUNT"
     internal const val TREE_CHANNELS_BY_ACTIVE_USERS_COUNT="CHANNELS_BY_ACTIVE_USERS_COUNT"
+    internal const val TREE_CHANNELS_MSG_COUNT="CHANNELS_BY_MSG_COUNT"
 
     internal const val USERS_MSGS_TREES ="USERS_MSGS_TREES"
     internal const val CHANNELS_MSGS_TREES ="CHANNELS_MSGS_TREES"

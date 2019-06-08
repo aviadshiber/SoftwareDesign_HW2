@@ -66,3 +66,8 @@ annotation class UsersMessagesTreesStorage
 @Retention(AnnotationRetention.RUNTIME)
 @BindingAnnotation
 annotation class ChannelMessagesTreesStorage
+
+@Target(AnnotationTarget.CONSTRUCTOR, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.PROPERTY, AnnotationTarget.TYPE, AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+@BindingAnnotation
+annotation class ChannelByMsgCountStorage
