@@ -325,13 +325,13 @@ class CourseAppImpl
                 .exceptionally { /* if user try to join again, its ok */ }
     }
 
-    private fun addMemberToChannelFuture(channelId: Long, userId: Long): CompletableFuture<Pair<Long, Long>>? {
+    private fun addMemberToChannelFuture(channelId: Long, userId: Long): CompletableFuture<Pair<Long, Long>> {
         return channelManager.addMemberToChannel(channelId, userId)
                 .exceptionally { /* if user try to join again, its ok */ }
                 .thenApply { Pair(channelId, userId) }
     }
 
-    private fun addChannelToUserFuture(userId: Long, channelId: Long): CompletableFuture<Pair<Long, Long>>? {
+    private fun addChannelToUserFuture(userId: Long, channelId: Long): CompletableFuture<Pair<Long, Long>> {
         return userManager.addChannelToUser(userId, channelId)
                 .exceptionally { /* if user try to join again, its ok */ }
                 .thenApply { Pair(channelId, userId) }
