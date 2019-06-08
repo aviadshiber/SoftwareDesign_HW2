@@ -8,6 +8,7 @@ import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.api.IStatisticsManager
 import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
 import il.ac.technion.cs.softwaredesign.storage.datastructures.CountIdKey
+import il.ac.technion.cs.softwaredesign.storage.datastructures.IdKey
 import il.ac.technion.cs.softwaredesign.storage.datastructures.SecureAVLTree
 import il.ac.technion.cs.softwaredesign.storage.users.IUserStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
@@ -28,11 +29,12 @@ class UserManager
 @Inject constructor(private val userStorage: IUserStorage,
                     private val statisticsManager: IStatisticsManager,
                     @UserIdSeqGenerator private val userIdGenerator: ISequenceGenerator,
-                    @UsersByChannelCountStorage private val usersByChannelsCountStorage: SecureStorage
+                    @UsersByChannelCountStorage private val usersByChannelsCountStorage: SecureStorage,
+                    @UsersMessagesTreesStorage private val usersMessagesTreesStorage: SecureStorage
 ) : IUserManager {
-
-    private val defaultKey: () -> CountIdKey = { CountIdKey() }
-    private val usersByChannelsCountTree = SecureAVLTree(usersByChannelsCountStorage, defaultKey)
+    private val defaultCountIdKey: () -> CountIdKey = { CountIdKey() }
+    private val defaultIdKey: () -> IdKey = { IdKey() }
+    private val usersByChannelsCountTree = SecureAVLTree(usersByChannelsCountStorage, defaultCountIdKey)
 
     override fun addUser(username: String, password: String, status: LoginStatus, privilege: PrivilegeLevel): CompletableFuture<Long> {
         //probably can be optimized even more with combine instead of compose but this is okay for now
@@ -135,13 +137,6 @@ class UserManager
         }
     }
 
-    private fun updateListFuture(userId: Long, list: ArrayList<Long>): CompletableFuture<ArrayList<Long>> {
-        val listPropertySetterFuture = userStorage.setPropertyListToUserId(userId, LIST_PROPERTY, list)
-        val listSizeSetterFuture = userStorage.setPropertyLongToUserId(userId, MANAGERS_CONSTS.SIZE_PROPERTY, list.size.toLong())
-
-        return Future.allAsList(listOf(listPropertySetterFuture, listSizeSetterFuture)).map { list}
-    }
-
     override fun removeChannelFromUser(userId: Long, channelId: Long): CompletableFuture<Unit> {
         return getChannelListOfUser(userId)
                 .thenApply { ArrayList<Long>(it) }
@@ -155,6 +150,28 @@ class UserManager
                     val currentSize = it.size.toLong()
                     updateUserNodeFuture(userId, oldCount = currentSize + 1L, newCount = currentSize)
                 }
+    }
+
+    override fun addMessageToUser(userId: Long, msgId: Long): CompletableFuture<Unit> {
+        return isUserIdExists(userId).thenApply {
+            if (!it) Unit
+            else {
+                val userMessagesTree = SecureAVLTree(usersMessagesTreesStorage, defaultIdKey, userId)
+                userMessagesTree.put(IdKey(msgId))
+            }
+        }
+    }
+
+    override fun readAllUsersMessages(userId: Long): CompletableFuture<List<Long>> {
+        return isUserIdExists(userId).thenApply {
+            if (!it) throw IllegalArgumentException("user id does not exist")
+            else {
+                val userMessagesTree = SecureAVLTree(usersMessagesTreesStorage, defaultIdKey, userId)
+                val msgIds = userMessagesTree.keys().map { k -> k.getId() }
+                userMessagesTree.clear()
+                msgIds
+            }
+        }
     }
 
 
@@ -173,6 +190,15 @@ class UserManager
         return  getTotalUsers()
                 .thenCompose { buildTop10UsersByChannelCountList(it) }
 
+    }
+
+
+    /** PRIVATES **/
+    private fun updateListFuture(userId: Long, list: ArrayList<Long>): CompletableFuture<ArrayList<Long>> {
+        val listPropertySetterFuture = userStorage.setPropertyListToUserId(userId, LIST_PROPERTY, list)
+        val listSizeSetterFuture = userStorage.setPropertyLongToUserId(userId, MANAGERS_CONSTS.SIZE_PROPERTY, list.size.toLong())
+
+        return Future.allAsList(listOf(listPropertySetterFuture, listSizeSetterFuture)).map { list}
     }
 
     private fun buildTop10UsersByChannelCountList(nrOutputUsers: Long ) : CompletableFuture<List<String>> {
@@ -195,7 +221,6 @@ class UserManager
 
     }
 
-    /** PRIVATES **/
     private fun initChannelListFuture(userId: Long): CompletableFuture<Long> {
         val listPropertySetterFuture=userStorage.setPropertyListToUserId(userId, LIST_PROPERTY, emptyList())
         val sizePropertySetterFuture=userStorage.setPropertyLongToUserId(userId, MANAGERS_CONSTS.SIZE_PROPERTY, 0L)

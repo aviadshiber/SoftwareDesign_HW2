@@ -68,6 +68,29 @@ class SecureAVLTreeTest {
     }
 
     @Test
+    fun clear() {
+        tree.clear()
+        assertThat(tree.size(), equalTo(0L))
+        val values = (1..20).map { SimpleKey(it.toLong()) }
+        values.forEach{ tree.put(it) }
+        values.forEach{ blackRedTree.put(it, it) }
+        assertThat(tree.size(), equalTo(blackRedTree.size.toLong()))
+        tree.clear()
+        assertThat(tree.size(), equalTo(0L))
+        values.forEach{ tree.put(it) }
+        tree.clear()
+        assertThat(tree.size(), equalTo(0L))
+        tree.put(values[0])
+        tree.clear()
+        assertThat(tree.size(), equalTo(0L))
+        tree.put(values[1])
+        tree.put(values[1])
+        tree.clear()
+        assertThat(tree.size(), equalTo(0L))
+    }
+
+
+    @Test
     fun isEmpty() {
         assertThat(tree.size(), equalTo(blackRedTree.size.toLong()))
     }

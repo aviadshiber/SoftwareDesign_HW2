@@ -22,6 +22,7 @@ object MANAGERS_CONSTS{
     const val CHANNEL_INVALID_NAME=""
     const val CHANNEL_INVALID_ID=INIT_INDEX_VAL
 
+    const val MESSAGE_INVALID_ID=-1L
 }
 object TREE_CONST {
     internal const val DELIMITER = "_"
@@ -43,6 +44,10 @@ object DB_NAMES {
     internal const val TREE_USERS_BY_CHANNELS_COUNT="USERS_BY_CHANNELS_COUNT"
     internal const val TREE_CHANNELS_BY_USERS_COUNT="CHANNELS_BY_USERS_COUNT"
     internal const val TREE_CHANNELS_BY_ACTIVE_USERS_COUNT="CHANNELS_BY_ACTIVE_USERS_COUNT"
+
+    internal const val USERS_MSGS_TREES ="USERS_MSGS_TREES"
+    internal const val CHANNELS_MSGS_TREES ="CHANNELS_MSGS_TREES"
+
 }
 
 

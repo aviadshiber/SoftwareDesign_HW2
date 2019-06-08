@@ -132,6 +132,20 @@ interface IUserManager {
      */
     fun removeChannelFromUser(userId: Long,channelId: Long): CompletableFuture<Unit>
 
+    /**
+     * add *pending* msg to user
+     * @param userId user id
+     * @param msgId message id
+     */
+    fun addMessageToUser(userId: Long, msgId: Long): CompletableFuture<Unit>
+
+    /**
+     * get all user pending messages and clear the collection
+     * @param userId user id
+     * @throws IllegalArgumentException throws if user id does not exist in the system
+     */
+    fun readAllUsersMessages(userId: Long): CompletableFuture<List<Long>>
+
 
     /** USER STATISTICS **/
     /**

@@ -86,6 +86,14 @@ constructor(private val primitiveStorage: SecureStorage, private val keyDefault:
             }
         }
 
+
+    /**
+     * clear tree
+     */
+    fun clear() {
+        root = null;
+    }
+
     /**
      * Checks if the symbol table is empty.
      *

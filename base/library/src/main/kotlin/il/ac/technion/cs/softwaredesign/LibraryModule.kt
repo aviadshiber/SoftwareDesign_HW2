@@ -98,4 +98,16 @@ class LibraryModule : KotlinModule() {
     fun provideUsersByChannelCountStorage(factory: SecureStorageFactory): SecureStorage {
         return factory.open(DB_NAMES.TREE_USERS_BY_CHANNELS_COUNT.toByteArray()).get().addCache()
     }
+
+    @Provides @Singleton @Inject
+    @UsersMessagesTreesStorage
+    fun provideUsersMessagesTreesStorage(factory: SecureStorageFactory): SecureStorage {
+        return factory.open(DB_NAMES.USERS_MSGS_TREES .toByteArray()).get().addCache()
+    }
+
+    @Provides @Singleton @Inject
+    @ChannelMessagesTreesStorage
+    fun provideChannelMessagesTreesStorage(factory: SecureStorageFactory): SecureStorage {
+        return factory.open(DB_NAMES.CHANNELS_MSGS_TREES.toByteArray()).get().addCache()
+    }
 }
