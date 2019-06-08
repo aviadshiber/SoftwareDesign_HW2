@@ -25,7 +25,12 @@ object MANAGERS_CONSTS{
     const val CHANNEL_INVALID_ID=INIT_INDEX_VAL
 
     const val MESSAGE_INVALID_ID=-1L
+    const val MESSAGE_MEDIA_TYPE="media"
+    const val MESSAGE_CONTENTS="content"
+    const val MESSAGE_CREATED_TIME="created"
+    const val MESSAGE_RECEIVED_TIME="received"
 }
+
 object TREE_CONST {
     internal const val DELIMITER = "_"
     internal const val SECURE_AVL_STORAGE_NUM_PROPERTIES = 5
@@ -40,6 +45,7 @@ object DB_NAMES {
     internal const val USER_DETAILS = "USER_DETAILS"
     internal const val CHANNEL_ID = "CHANNEL_ID"
     internal const val CHANNEL_DETAILS = "CHANNEL_DETAILS"
+    internal const val MESSAGE_DETAILS = "MESSAGE_DETAILS"
     internal const val STATISTICS = "STATISTICS"
     //DATA BASES FOR TREES
 

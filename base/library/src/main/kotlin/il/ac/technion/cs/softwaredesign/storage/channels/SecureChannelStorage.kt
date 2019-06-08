@@ -4,6 +4,7 @@ import il.ac.technion.cs.softwaredesign.managers.ChannelDetailsStorage
 import il.ac.technion.cs.softwaredesign.managers.ChannelIdStorage
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.ConversionUtils
+import il.ac.technion.cs.softwaredesign.storage.utils.ConversionUtils.createPropertyKey
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.DELIMITER
 import java.util.concurrent.CompletableFuture
@@ -61,16 +62,9 @@ class SecureChannelStorage
         else stringValue.split(DELIMITER).map { it.toLong() }.toMutableList()
     }
 
-
     override fun setPropertyListToChannelId(channelIdKey: Long, property: String, listValue: List<Long>): CompletableFuture<Unit> {
         val key = createPropertyKey(channelIdKey, property)
         val value = listValue.joinToString(DELIMITER)
         return channelDetailsStorage.write(key, value.toByteArray())
-    }
-
-    private fun createPropertyKey(channelId: Long, property: String): ByteArray {
-        val channelIdByteArray = ConversionUtils.longToBytes(channelId)
-        val keySuffixByteArray = "$DELIMITER$property".toByteArray()
-        return channelIdByteArray + keySuffixByteArray
     }
 }

@@ -5,6 +5,7 @@ import il.ac.technion.cs.softwaredesign.managers.MemberDetailsStorage
 import il.ac.technion.cs.softwaredesign.managers.MemberIdStorage
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.ConversionUtils
+import il.ac.technion.cs.softwaredesign.storage.utils.ConversionUtils.createPropertyKey
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS.DELIMITER
 import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
@@ -77,11 +78,5 @@ class SecureUserStorage @Inject constructor(
         val key = createPropertyKey(userIdKey, property)
         val value = listValue.joinToString(DELIMITER)
         return userDetailsStorage.write(key, value.toByteArray())
-    }
-
-    private fun createPropertyKey(userId: Long, property: String): ByteArray {
-        val userIdByteArray = ConversionUtils.longToBytes(userId)
-        val keySuffixByteArray = "$DELIMITER$property".toByteArray()
-        return userIdByteArray + keySuffixByteArray
     }
 }
