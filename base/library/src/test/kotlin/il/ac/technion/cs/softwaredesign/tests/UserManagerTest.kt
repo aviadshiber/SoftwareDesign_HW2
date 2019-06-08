@@ -1,18 +1,14 @@
 package il.ac.technion.cs.softwaredesign.tests
 
 import com.authzee.kotlinguice4.getInstance
-import com.google.common.primitives.Longs
 import com.google.inject.Guice
 import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.hasElement
-import il.ac.technion.cs.softwaredesign.storage.SecureStorageFactory
 import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
 import il.ac.technion.cs.softwaredesign.storage.statistics.IStatisticsStorage
-import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS
-import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST
 import io.github.vjames19.futures.jdk8.ImmediateFuture
 import org.junit.jupiter.api.*
 import java.util.concurrent.CompletableFuture
@@ -321,10 +317,9 @@ class UserManagerTest {
 
     @Test
     fun `remove the same element twice throws and list size is valid`() {
-        var id1 = -1L
+        val id1 = userManager.addUser("ron", "ron_password").get()
         assertThrows<IllegalAccessException> {
-            userManager.addUser("ron", "ron_password")
-                    .thenCompose { id1 = it; userManager.addChannelToUser(id1, 123L) }
+            userManager.addChannelToUser(id1, 123L)
                     .thenCompose { userManager.removeChannelFromUser(id1, 123L) }
                     .thenCompose { userManager.removeChannelFromUser(id1, 123L) }
                     .joinException()
