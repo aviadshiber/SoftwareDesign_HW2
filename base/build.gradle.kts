@@ -18,6 +18,7 @@ allprojects {
         set("kotlinGuiceVersion", "1.3.0")
         set("mockkVersion", "1.9.3")
         set("kotlinFuturesVersion","1.2.0")
+        set("dokkaVersion","0.9.18")
     }
 }
 
@@ -26,6 +27,7 @@ subprojects {
     dependencies {
         val junitVersion: String? by extra
         val kotlinFuturesVersion: String? by extra
+        val dokkaVersion: String? by extra
         implementation(kotlin("stdlib-jdk8"))
         compile(kotlin("reflect"))
 
@@ -35,8 +37,7 @@ subprojects {
         compile("com.github.vjames19.kotlin-futures","kotlin-futures-jdk8",kotlinFuturesVersion)
         // for listenable future
         compile("com.github.vjames19.kotlin-futures","kotlin-futures-guava",kotlinFuturesVersion)
-
-
+        compile("org.jetbrains.dokka:dokka-android-gradle-plugin:$dokkaVersion")
     }
     tasks.withType<KotlinCompile> {
         kotlinOptions.jvmTarget = "1.8"

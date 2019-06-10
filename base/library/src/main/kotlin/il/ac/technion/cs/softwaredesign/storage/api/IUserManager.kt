@@ -4,6 +4,9 @@ import java.lang.IllegalArgumentException
 import java.util.concurrent.CompletableFuture
 
 
+/**
+ * This interface used to perform user's operations
+ */
 interface IUserManager {
     enum class LoginStatus{
         OUT,

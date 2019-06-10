@@ -1,5 +1,6 @@
 plugins {
     application
+    id("org.jetbrains.dokka") version "0.9.18"
 }
 
 application {
@@ -25,4 +26,9 @@ dependencies {
     testImplementation("io.mockk", "mockk", mockkVersion)
 
     compile( "com.google.guava:guava: version=$guavaVersion")
+}
+
+tasks.dokka {
+    outputFormat = "html"
+    outputDirectory = "build/javadoc"
 }
