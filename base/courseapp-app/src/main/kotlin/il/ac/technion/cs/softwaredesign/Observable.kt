@@ -1,15 +1,8 @@
 package il.ac.technion.cs.softwaredesign
 
-abstract class Observable<T> {
-    private val listeners = HashSet<(T) -> Unit>()
+import java.util.concurrent.CompletableFuture
 
-    fun listen(listener: (T) -> Unit) {
-        listeners.add(listener)
-    }
-    fun unlisten(listener: (T) -> Unit) {
-        listeners.remove(listener)
-    }
-    protected fun onChange(t: T) {
-        listeners.forEach { it(t) }
-    }
+interface Observable<S, M> {
+    fun listen(listener: (S, M) -> CompletableFuture<Unit>)
+    fun unlisten(listener: (S, M) -> CompletableFuture<Unit>)
 }

@@ -29,6 +29,38 @@ class CourseAppImpl
         val regex: Regex = Regex("#[#_A-Za-z0-9]*")
     }
 
+    private val userListeners: MutableSet<UserListener> = HashSet()
+
+    // should be called from add listener
+    fun listen(userId: Long, callback: ListenerCallback) {
+        val userListener = UserListener(userId)
+        if (userListeners.contains(userListener)) {
+            val currentListener = userListeners.find { it == userListener }
+            currentListener!!.listen(callback)
+            userListeners.remove(currentListener)
+            userListeners.add(currentListener)
+        } else {
+            val currentListener = UserListener(userId)
+            currentListener.listen(callback)
+            userListeners.add(currentListener)
+        }
+    }
+
+    // should be called from remove listener
+    fun unlisten(userId: Long, callback: ListenerCallback) {
+        val userListener = UserListener(userId)
+        val currentListener = userListeners.find { it == userListener }!!
+        currentListener.unlisten(callback)
+        if (currentListener.isEmpty()) userListeners.remove(currentListener)
+    }
+
+    // should be called from broadcast, channel, and private
+    fun onChange(s: String, m: Message): CompletableFuture<Unit> {
+//        return listeners.map { it(s,m) }
+//                .reduce { acc, completableFuture -> acc.thenCompose {completableFuture } }
+        return ImmediateFuture { Unit }
+    }
+
     override fun login(username: String, password: String): CompletableFuture<String> {
         val hashedPassword = password.hashString(HASH_ALGORITHM)
         return userManager.getUserId(username).thenCompose { userId ->
