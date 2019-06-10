@@ -2,6 +2,9 @@ package il.ac.technion.cs.softwaredesign.storage.api
 
 import java.util.concurrent.CompletableFuture
 
+/**
+ * This interface used to perform operations on global data statistics
+ */
 interface IStatisticsManager {
     /** PRIMITIVE STATISTICS **/
     /**

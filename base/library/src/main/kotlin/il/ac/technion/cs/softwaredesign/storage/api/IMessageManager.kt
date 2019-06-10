@@ -4,6 +4,9 @@ import java.lang.IllegalArgumentException
 import java.time.LocalDateTime
 import java.util.concurrent.CompletableFuture
 
+/**
+ * This interface used to perform message's operations
+ */
 interface IMessageManager {
     enum class MessageType{
         PRIVATE,

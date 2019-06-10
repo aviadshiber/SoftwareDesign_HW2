@@ -3,6 +3,9 @@ package il.ac.technion.cs.softwaredesign.storage.api
 import java.lang.IllegalArgumentException
 import java.util.concurrent.CompletableFuture
 
+/**
+ * This interface used to perform channel's operations
+ */
 interface IChannelManager {
     /**
      * Add new channel to the system

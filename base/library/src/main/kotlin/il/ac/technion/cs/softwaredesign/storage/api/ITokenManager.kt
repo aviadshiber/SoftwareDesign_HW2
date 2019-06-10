@@ -2,6 +2,9 @@ package il.ac.technion.cs.softwaredesign.storage.api
 
 import java.util.concurrent.CompletableFuture
 
+/**
+ * This interface used to perform token's operations
+ */
 interface ITokenManager {
     /**
      * Check if token is valid
