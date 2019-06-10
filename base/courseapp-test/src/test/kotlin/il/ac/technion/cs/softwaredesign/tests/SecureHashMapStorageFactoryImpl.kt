@@ -21,6 +21,7 @@ class SecureHashMapStorageFactoryImpl : SecureStorageFactory {
             storages[ByteArrayKey(name)] = storage
             Thread.sleep(100)
         }
+
         return ImmediateFuture{storage!!}
     }
 }
