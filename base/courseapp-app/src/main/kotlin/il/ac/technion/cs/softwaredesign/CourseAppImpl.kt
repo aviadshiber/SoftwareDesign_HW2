@@ -36,7 +36,7 @@ class CourseAppImpl
     private fun listen(userId: Long, callback: ListenerCallback) {
         val userListener = userListeners[userId]
         if (userListener == null) {
-            userListeners[userId] = UserListener().listen(callback)
+            userListeners[userId] = UserListener(userManager,messageManager).listen(callback)
         } else {
             userListener.listen(callback)
         }
@@ -50,7 +50,7 @@ class CourseAppImpl
     private fun unlisten(userId: Long, callback: ListenerCallback) {
         val userListener = userListeners[userId]
         if (userListener == null) {
-            userListeners[userId] = UserListener().unlisten(callback)
+            userListeners[userId] = UserListener(userManager,messageManager).unlisten(callback)
         } else {
             userListener.unlisten(callback)
         }

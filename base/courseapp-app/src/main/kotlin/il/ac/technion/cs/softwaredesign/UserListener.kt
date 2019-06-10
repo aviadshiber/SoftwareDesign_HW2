@@ -1,14 +1,13 @@
 package il.ac.technion.cs.softwaredesign
 
-import com.google.inject.Inject
-import il.ac.technion.cs.softwaredesign.managers.MessageManager
-import il.ac.technion.cs.softwaredesign.managers.UserManager
 import il.ac.technion.cs.softwaredesign.messages.Message
+import il.ac.technion.cs.softwaredesign.storage.api.IMessageManager
+import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
 import io.github.vjames19.futures.jdk8.ImmediateFuture
 import java.time.LocalDateTime
 import java.util.concurrent.CompletableFuture
 
-class UserListener @Inject constructor(private val userManager: UserManager,private val messageManager: MessageManager) {
+class UserListener (private val userManager: IUserManager, private val messageManager: IMessageManager) {
     private var callbacks = mutableListOf<ListenerCallback>()
 
     /**
