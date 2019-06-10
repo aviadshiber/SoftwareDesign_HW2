@@ -13,6 +13,12 @@ import javax.inject.Singleton
 @BindingAnnotation
 annotation class GeneratorStorage
 
+/**
+ * Used to generate unique values for Pointer, to used by SecureAvlTree
+ * @property secureStorage StorageWrapper
+ * @property lastGeneratedKey ByteArray
+ * @constructor
+ */
 @Singleton
 class SecureSequenceGenerator
 constructor(private val secureStorage: StorageWrapper) {

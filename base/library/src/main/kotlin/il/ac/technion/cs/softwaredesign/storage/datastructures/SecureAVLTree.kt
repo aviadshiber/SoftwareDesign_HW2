@@ -49,7 +49,7 @@ import java.util.*
  */
 
 /**
- * Initializes an empty symbol table.
+ * Initializes an SecureAVLTree.
  */
 class SecureAVLTree<Key : ISecureStorageKey<Key>>
 constructor(private val primitiveStorage: SecureStorage, private val keyDefault: () -> Key,

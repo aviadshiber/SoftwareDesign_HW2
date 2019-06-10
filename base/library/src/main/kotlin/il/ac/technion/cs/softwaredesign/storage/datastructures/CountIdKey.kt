@@ -4,6 +4,12 @@ import il.ac.technion.cs.softwaredesign.storage.api.ISecureStorageKey
 import il.ac.technion.cs.softwaredesign.storage.utils.ConversionUtils
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 
+/**
+ * Key that contains [count] as primary key, and [id] as a secondary key
+ * @property count Long
+ * @property id Long
+ * @constructor
+ */
 class CountIdKey(private var count: Long = 0, // primary key
                  private var id: Long = MANAGERS_CONSTS.CHANNEL_INVALID_ID) // secondary key
     : ISecureStorageKey<CountIdKey> {
