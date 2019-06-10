@@ -51,7 +51,7 @@ class MessageManagerTest {
         val content = "hello".toByteArray()
         val createdTime = LocalDateTime.now()
         val messageType = IMessageManager.MessageType.BROADCAST
-        messageManager.addMessage(id1, mediaType, content, createdTime, messageType).join()
+        messageManager.addMessage(id1, mediaType, content, createdTime, messageType, source = "source").join()
 
         Assertions.assertEquals(messageManager.getMessageMediaType(id1).join(), mediaType)
         Assertions.assertEquals(messageManager.getMessageContent(id1).join(), content)
@@ -76,7 +76,7 @@ class MessageManagerTest {
         val content = "hello".toByteArray()
         val createdTime = LocalDateTime.now()
         val messageType = IMessageManager.MessageType.BROADCAST
-        messageManager.addMessage(id1, mediaType, content, createdTime, messageType, startCounter = 7).join()
+        messageManager.addMessage(id1, mediaType, content, createdTime, messageType, startCounter = 7, source = "source").join()
 
         Assertions.assertEquals(messageManager.getMessageMediaType(id1).join(), mediaType)
         Assertions.assertEquals(messageManager.getMessageContent(id1).join(), content)
@@ -97,7 +97,7 @@ class MessageManagerTest {
 
         assertThrows<IllegalArgumentException> {messageManager.getMessageCounter(id1+id1).joinException()  }
         val id2 = messageManager.generateUniqueMessageId().join()
-        messageManager.addMessage(id2, mediaType, content, createdTime, IMessageManager.MessageType.CHANNEL, startCounter = 7).join()
+        messageManager.addMessage(id2, mediaType, content, createdTime, IMessageManager.MessageType.CHANNEL, startCounter = 7, source = "source").join()
         assertThrows<IllegalAccessException> {
             messageManager.getMessageCounter(id2).joinException()
         }
@@ -118,13 +118,13 @@ class MessageManagerTest {
         val createdTime = LocalDateTime.now()
         val messageType = IMessageManager.MessageType.BROADCAST
         Assertions.assertEquals(messageManager.getNumberOfPendingMessages().join(), 0)
-        messageManager.addMessage(id1, mediaType, content, createdTime, messageType, startCounter = 7).join()
+        messageManager.addMessage(id1, mediaType, content, createdTime, messageType, startCounter = 7, source = "source").join()
         Assertions.assertEquals(messageManager.getNumberOfPendingMessages().join(), 1)
-        messageManager.addMessage(id2, mediaType, content, createdTime, IMessageManager.MessageType.PRIVATE, startCounter = 7).join()
+        messageManager.addMessage(id2, mediaType, content, createdTime, IMessageManager.MessageType.PRIVATE, startCounter = 7, source = "source").join()
         Assertions.assertEquals(messageManager.getNumberOfPendingMessages().join(), 2)
-        messageManager.addMessage(id3, mediaType, content, createdTime, IMessageManager.MessageType.CHANNEL, startCounter = 7).join()
+        messageManager.addMessage(id3, mediaType, content, createdTime, IMessageManager.MessageType.CHANNEL, startCounter = 7, source = "source").join()
         Assertions.assertEquals(messageManager.getNumberOfPendingMessages().join(), 2)
-        assertThrows<IllegalArgumentException> { messageManager.addMessage(id3, mediaType, content, createdTime, IMessageManager.MessageType.CHANNEL, startCounter = 7).joinException() }
+        assertThrows<IllegalArgumentException> { messageManager.addMessage(id3, mediaType, content, createdTime, IMessageManager.MessageType.CHANNEL, startCounter = 7, source = "source").joinException() }
     }
 
     @Test
@@ -138,13 +138,13 @@ class MessageManagerTest {
         val createdTime = LocalDateTime.now()
         val messageType = IMessageManager.MessageType.BROADCAST
         Assertions.assertEquals(messageManager.getAllBroadcastMessageIds().size, 0)
-        messageManager.addMessage(id1, mediaType, content, createdTime, messageType, startCounter = 7).join()
+        messageManager.addMessage(id1, mediaType, content, createdTime, messageType, startCounter = 7, source = "source").join()
         Assertions.assertEquals(messageManager.getAllBroadcastMessageIds(), listOf(id1))
-        messageManager.addMessage(id2, mediaType, content, createdTime, messageType, startCounter = 7).join()
+        messageManager.addMessage(id2, mediaType, content, createdTime, messageType, startCounter = 7, source = "source").join()
         Assertions.assertEquals(messageManager.getAllBroadcastMessageIds(), listOf(id1, id2).sorted())
-        messageManager.addMessage(id3, mediaType, content, createdTime, IMessageManager.MessageType.CHANNEL, startCounter = 7).join()
+        messageManager.addMessage(id3, mediaType, content, createdTime, IMessageManager.MessageType.CHANNEL, startCounter = 7, source = "source").join()
         Assertions.assertEquals(messageManager.getAllBroadcastMessageIds(), listOf(id1, id2).sorted())
-        messageManager.addMessage(id4, mediaType, content, createdTime, IMessageManager.MessageType.PRIVATE, startCounter = 7).join()
+        messageManager.addMessage(id4, mediaType, content, createdTime, IMessageManager.MessageType.PRIVATE, startCounter = 7, source = "source").join()
         Assertions.assertEquals(messageManager.getAllBroadcastMessageIds(), listOf(id1, id2).sorted())
         messageManager.decreaseMessageCounterBy(id1, 7).join()
         Assertions.assertEquals(messageManager.getAllBroadcastMessageIds(), listOf(id2))
