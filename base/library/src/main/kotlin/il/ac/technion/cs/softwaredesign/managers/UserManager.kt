@@ -22,6 +22,7 @@ import io.github.vjames19.futures.jdk8.map
 import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.max
 import kotlin.math.min
 
 
@@ -108,7 +109,10 @@ class UserManager
     }
 
     override fun updateUserLastReadMsgId(userId: Long, msgId: Long): CompletableFuture<Unit> {
-        return userStorage.setPropertyLongToUserId(userId, MANAGERS_CONSTS.LAST_READ_MSG_ID_PROPERTY, msgId)
+        return userStorage.getPropertyLongByUserId(userId, MANAGERS_CONSTS.LAST_READ_MSG_ID_PROPERTY).thenCompose {
+            val maxMsg = max(it!!, msgId)
+            userStorage.setPropertyLongToUserId(userId, MANAGERS_CONSTS.LAST_READ_MSG_ID_PROPERTY, maxMsg)
+        }
     }
 
     override fun isUsernameExists(username: String): CompletableFuture<Boolean> {

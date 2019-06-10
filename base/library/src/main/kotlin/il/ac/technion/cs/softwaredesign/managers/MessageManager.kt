@@ -119,12 +119,16 @@ class MessageManager @Inject constructor(
     }
 
     override fun updateMessageReceivedTime(msgId: Long, received: LocalDateTime): CompletableFuture<Unit> {
-        return messageStorage.setTimeToId(msgId, MANAGERS_CONSTS.MESSAGE_RECEIVED_TIME, received)
-                .thenCompose { getMessageType(msgId) }
+        return messageStorage.getTimeById(msgId, MANAGERS_CONSTS.MESSAGE_RECEIVED_TIME)
                 .thenCompose {
-                    if (it == IMessageManager.MessageType.PRIVATE)
-                        statisticsManager.decreaseNumberOfPendingMsgsBy()
-                    else ImmediateFuture { Unit }
+                    if (it != null) ImmediateFuture{Unit}
+                    else messageStorage.setTimeToId(msgId, MANAGERS_CONSTS.MESSAGE_RECEIVED_TIME, received)
+                            .thenCompose { getMessageType(msgId) }
+                            .thenCompose {
+                                if (it == IMessageManager.MessageType.PRIVATE)
+                                    statisticsManager.decreaseNumberOfPendingMsgsBy()
+                                else ImmediateFuture { Unit }
+                            }
                 }
     }
 

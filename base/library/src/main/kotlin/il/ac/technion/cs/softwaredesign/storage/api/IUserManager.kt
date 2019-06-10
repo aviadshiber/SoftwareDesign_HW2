@@ -91,7 +91,7 @@ interface IUserManager {
     fun updateUserStatus(userId:Long, status: LoginStatus): CompletableFuture<Unit>
 
     /**
-     * updates the last msg that the user was read
+     * updates the last msg that the user was read to be maximum of currentLast msg id and [msgId]
      * @param userId user id
      * @param msgId msg id of the message
      */

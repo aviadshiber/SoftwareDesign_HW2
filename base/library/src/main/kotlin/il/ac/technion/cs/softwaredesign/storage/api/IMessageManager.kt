@@ -120,7 +120,7 @@ interface IMessageManager {
     fun getMessageDestUserId(msgId: Long): CompletableFuture<Long>
 
     /**
-     * updates a message received time
+     * updates a message received time, only if it does not set before!
      * @param msgId message id
      * @param received received time
      * @throws IllegalArgumentException throws if message id does not exist in the system
