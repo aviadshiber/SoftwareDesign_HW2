@@ -123,11 +123,12 @@ class MessageManager @Inject constructor(
                 .thenCompose {
                     if (it != null) ImmediateFuture{Unit}
                     else messageStorage.setTimeToId(msgId, MANAGERS_CONSTS.MESSAGE_RECEIVED_TIME, received)
-                }.thenCompose { getMessageType(msgId) }
-                .thenCompose {
-                    if (it == IMessageManager.MessageType.PRIVATE)
-                        statisticsManager.decreaseNumberOfPendingMsgsBy()
-                    else ImmediateFuture { Unit }
+                            .thenCompose { getMessageType(msgId) }
+                            .thenCompose {
+                                if (it == IMessageManager.MessageType.PRIVATE)
+                                    statisticsManager.decreaseNumberOfPendingMsgsBy()
+                                else ImmediateFuture { Unit }
+                            }
                 }
     }
 
