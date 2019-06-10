@@ -24,4 +24,6 @@ class SecureHashMapStorageFactoryImpl : SecureStorageFactory {
 
         return ImmediateFuture{storage!!}
     }
+
+    fun clear() = storages.clear()
 }
