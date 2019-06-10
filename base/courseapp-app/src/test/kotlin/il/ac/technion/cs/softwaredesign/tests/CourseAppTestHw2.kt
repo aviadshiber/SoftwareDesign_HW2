@@ -48,9 +48,6 @@ class CourseAppTestHw2 {
         val ron=courseApp.login("ron","123").join()
         messageFactory.create(MediaType.TEXT, "should not be received".toByteArray())
                 .thenCompose {courseApp.broadcast(aviad,it)  }
-                .thenApply {
-                    (courseApp as CourseAppImpl).messageManager.getAllBroadcastMessageIds().forEach{id->println(id)}
-                }
                 .thenCompose {  courseApp.addListener(ron,ronCallback) }
                 .thenCompose { courseApp.addListener(aviad,aviadCallback) }.join()
                 //.thenCompose { messageFactory.create(MediaType.TEXT, "aviad and ron should get this".toByteArray())  }

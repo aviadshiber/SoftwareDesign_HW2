@@ -19,10 +19,10 @@ import javax.inject.Inject
 
 
 class CourseAppImpl
-@Inject constructor( val tokenManager: ITokenManager,
-                     val userManager: IUserManager,
-                     val channelManager: IChannelManager,
-                     val messageManager: IMessageManager
+@Inject constructor(private val tokenManager: ITokenManager,
+                    private val userManager: IUserManager,
+                    private val channelManager: IChannelManager,
+                    private val messageManager: IMessageManager
 ) : CourseApp {
 
     internal companion object {
