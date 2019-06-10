@@ -19,10 +19,10 @@ import javax.inject.Inject
 
 
 class CourseAppImpl
-@Inject constructor(private val tokenManager: ITokenManager,
-                    private val userManager: IUserManager,
-                    private val channelManager: IChannelManager,
-                    private val messageManager: IMessageManager
+@Inject constructor( val tokenManager: ITokenManager,
+                     val userManager: IUserManager,
+                     val channelManager: IChannelManager,
+                     val messageManager: IMessageManager
 ) : CourseApp {
 
     internal companion object {
@@ -187,7 +187,7 @@ class CourseAppImpl
         return validateUserPrivilegeOnChannelFuture(token, channel).thenCompose { channelId -> channelManager.getNumberOfMembersInChannel(channelId) }
     }
 
-    // TODO: implement
+
     override fun addListener(token: String, callback: ListenerCallback): CompletableFuture<Unit> {
         return validateTokenFuture(token)
                 .thenCompose { tokenManager.getUserIdByToken(token).thenApply { it!! } }
@@ -365,6 +365,7 @@ class CourseAppImpl
         return messageManager.getMessageMediaType(msgId)
                 .thenApply {
                     val message = MessageImpl()
+                    message.id=msgId
                     message.media = MediaType.values()[it.toInt()]
                     message
                 }.thenCompose { message ->
@@ -414,8 +415,13 @@ class CourseAppImpl
         return Future.allAsList(listOf(updateUserStatusFuture, updateChannelStatusFuture))
     }
 
-    private fun validateTokenFuture(token: String) =
-            tokenManager.isTokenValid(token).thenApply { if (!it) throw InvalidTokenException() }
+    private fun validateTokenFuture(token: String) :CompletableFuture<Unit> {
+        return tokenManager.isTokenValid(token)
+                .thenApply { if (!it)
+                    throw InvalidTokenException()
+                }
+    }
+
 
     private fun validateUserInChannel(userId: Long?, channelId: Long): CompletableFuture<Pair<Long, Long>> {
         return if (userId == null)
