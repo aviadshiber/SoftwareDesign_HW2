@@ -4,17 +4,13 @@ import com.google.inject.Inject
 import il.ac.technion.cs.softwaredesign.managers.MessageManager
 import il.ac.technion.cs.softwaredesign.managers.UserManager
 import il.ac.technion.cs.softwaredesign.messages.Message
+import io.github.vjames19.futures.jdk8.ImmediateFuture
 import java.time.LocalDateTime
 import java.util.concurrent.CompletableFuture
 
-class UserListener {
-    private var callbacks= mutableListOf<ListenerCallback>()
-    @Inject
-    private lateinit var userManager:UserManager
-    @Inject
-    private lateinit var channelManager: UserManager
-    @Inject
-    private lateinit var messageManager: MessageManager
+class UserListener @Inject constructor(private val userManager: UserManager,private val messageManager: MessageManager) {
+    private var callbacks = mutableListOf<ListenerCallback>()
+
     /**
      * add a new callback
      * @param callback ListenerCallback
@@ -35,24 +31,24 @@ class UserListener {
         return this
     }
 
-    fun notifyOnMessageArrive(destUserId:Long,source:String,message: Message):CompletableFuture<Unit>{
-        return userManager.updateUserLastReadMsgId(destUserId,message.id)
-                .thenApply { message.received= LocalDateTime.now()}
-                .thenCompose { messageManager.updateMessageReceivedTime(message.id,message.received!!) }
+    fun notifyOnMessageArrive(destUserId: Long, source: String, message: Message): CompletableFuture<Unit> {
+        return userManager.updateUserLastReadMsgId(destUserId, message.id)
+                .thenApply { message.received = LocalDateTime.now() }
+                .thenCompose { messageManager.updateMessageReceivedTime(message.id, message.received!!) }
                 .thenCompose { applyCallbacks(source, message) }
     }
 
     private fun applyCallbacks(source: String, message: Message): CompletableFuture<Unit> {
-        return callbacks.map { callback -> callback(source, message) }
-                .reduce { acc, completableFuture ->
-                    acc.thenCompose { completableFuture }
-                }
+        return if (callbacks.isNotEmpty())
+            callbacks.map { callback -> callback(source, message) }
+                    .reduce { acc, completableFuture ->
+                        acc.thenCompose { completableFuture }
+                    }
+        else
+            ImmediateFuture { Unit }
     }
 
-    fun callbackExist(callback: ListenerCallback)= callbacks.find { it==callback } != null
-
-
-
+    fun callbackExist(callback: ListenerCallback) = callbacks.find { it == callback } != null
 
 
     /**

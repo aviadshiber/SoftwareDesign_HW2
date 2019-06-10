@@ -197,30 +197,36 @@ class CourseAppImpl
                         listen(userId, callback)
                         val callbacks = userListeners[userId]!!
                         val broadcastIds = messageManager.getAllBroadcastMessageIds().sorted()
-                        broadcastIds.map { broadcastId ->
-                            buildMessage(broadcastId)
-                                    .thenCompose { (source, message) ->
-                                        readBroadcastMessageByListener(userId, message, callbacks)
+                        if (broadcastIds.isEmpty()) ImmediateFuture { Unit }
+                        else
+                            broadcastIds.map { broadcastId ->
+                                buildMessage(broadcastId)
+                                        .thenCompose { (source, message) ->
+                                            readBroadcastMessageByListener(userId, message, callbacks)
+                                        }
+                            }
+                                    .reduce { acc, completableFuture ->
+                                        acc.thenCompose { completableFuture }
                                     }
-                        }
-                                .reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
-                                .thenCompose {
-                                    userManager.getAllChannelAndPrivateUserMessages(userId)
-                                            .thenCompose { messagesIds ->
-                                                messagesIds.map { messageId ->
-                                                    buildMessage(messageId)
-                                                            .thenCompose { (source, message) ->
-                                                                callbacks.notifyOnMessageArrive(userId, source, message)
-                                                            }
-                                                }
-                                                        .reduce { acc,
-                                                                  completableFuture ->
-                                                            acc.thenCompose { completableFuture }
+                                    .thenCompose {
+                                        userManager.getAllChannelAndPrivateUserMessages(userId)
+                                                .thenCompose { messagesIds ->
+                                                    if (messagesIds.isEmpty()) ImmediateFuture { Unit }
+                                                    else
+                                                        messagesIds.map { messageId ->
+                                                            buildMessage(messageId)
+                                                                    .thenCompose { (source, message) ->
+                                                                        callbacks.notifyOnMessageArrive(userId, source, message)
+                                                                    }
                                                         }
+                                                                .reduce { acc,
+                                                                          completableFuture ->
+                                                                    acc.thenCompose { completableFuture }
+                                                                }
 
 
-                                            }
-                                }
+                                                }
+                                    }
                     } else {
                         ImmediateFuture { listen(userId, callback) }
                     }
@@ -253,8 +259,11 @@ class CourseAppImpl
                 .thenCompose { (channelId, source) -> channelManager.addMessageToChannel(channelId, message.id).thenApply { Pair(channelId, source) } }
                 .thenCompose { (channelId, source) -> channelManager.getChannelMembersList(channelId).thenApply { Pair(it, source) } }
                 .thenCompose { (list, source) ->
-                    list.map { memberId -> sendPrivateOrChannelMessageToUser(memberId, source, message) }
-                            .reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
+                    if (list.isNotEmpty())
+                        list.map { memberId -> sendPrivateOrChannelMessageToUser(memberId, source, message) }
+                                .reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
+                    else
+                        ImmediateFuture { Unit }
                 }
     }
 
@@ -273,9 +282,12 @@ class CourseAppImpl
     }
 
     private fun sendBroadcastMessageToListeners(message: Message): CompletableFuture<Unit> {
-        return userListeners.map { (userId, listener) ->
-            readBroadcastMessageByListener(userId, message, listener)
-        }.reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
+        return if (userListeners.isNotEmpty())
+            userListeners.map { (userId, listener) ->
+                readBroadcastMessageByListener(userId, message, listener)
+            }.reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
+        else
+            ImmediateFuture { Unit }
     }
 
     private fun readBroadcastMessageByListener(userId: Long, message: Message, listener: UserListener): CompletableFuture<Unit> {
