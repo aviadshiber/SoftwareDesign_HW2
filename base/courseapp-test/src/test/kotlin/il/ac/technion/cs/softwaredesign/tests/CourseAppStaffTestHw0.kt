@@ -8,6 +8,7 @@ import com.natpryce.hamkrest.present
 import il.ac.technion.cs.softwaredesign.CourseApp
 import il.ac.technion.cs.softwaredesign.CourseAppInitializer
 import il.ac.technion.cs.softwaredesign.CourseAppModule
+import il.ac.technion.cs.softwaredesign.exceptions.InvalidTokenException
 import java.time.Duration.ofSeconds
 import org.junit.jupiter.api.*
 
@@ -59,10 +60,8 @@ class CourseAppStaffTestHw0 {
         fun `basic logout - single user(exception case)`() {
             val token = courseApp.login("User1", "password").join()
             courseApp.logout(token).join()
-            assertThrows<IllegalArgumentException>({ courseApp.isUserLoggedIn(token, "User1").joinException() })
+            assertThrows<InvalidTokenException>({ courseApp.isUserLoggedIn(token, "User1").joinException() })
         }
-
-
     }
 
 
@@ -138,7 +137,7 @@ class CourseAppStaffTestHw0 {
             assertWithTimeout(
                     {
 
-                        assertThrows<IllegalArgumentException> { courseApp.login("egqgtwnm9r", "nbjssn5grc") }
+                        assertThrows<IllegalArgumentException> { courseApp.login("egqgtwnm9r", "nbjssn5grc").joinException() }
 
                     }
             )
@@ -152,7 +151,7 @@ class CourseAppStaffTestHw0 {
             assertThrows<IllegalArgumentException> {
                 runWithTimeout(ofSeconds(10)) {
 
-                    courseApp.isUserLoggedIn(tokenMap["egqgtwnm9r"] as String, "egqgtwnm9r")
+                    courseApp.isUserLoggedIn(tokenMap["egqgtwnm9r"] as String, "egqgtwnm9r").joinException()
                 }
             }
         }
@@ -163,8 +162,8 @@ class CourseAppStaffTestHw0 {
             assertWithTimeout(
                     {
 
-                        assertThrows<IllegalArgumentException> { courseApp.logout(tokenMap["au6xvemv3a"] as String) }
-                        assertThrows<IllegalArgumentException> { courseApp.logout("MagicalToken") }
+                        assertThrows<IllegalArgumentException> { courseApp.logout(tokenMap["au6xvemv3a"] as String).joinException() }
+                        assertThrows<IllegalArgumentException> { courseApp.logout("MagicalToken").joinException() }
                     }
             )
 
@@ -179,9 +178,9 @@ class CourseAppStaffTestHw0 {
                     {
 
                         assertThrows<IllegalArgumentException>
-                        { courseApp.login("pvdfu81uma", "khtevw") }
+                        { courseApp.login("pvdfu81uma", "khtevw").joinException() }
                         assertThrows<IllegalArgumentException>
-                        { courseApp.login("kiu9t1ucva", "g9xj2t") }
+                        { courseApp.login("kiu9t1ucva", "g9xj2t").joinException() }
                     }
             )
 
@@ -192,11 +191,10 @@ class CourseAppStaffTestHw0 {
             val tokenMap = initCourseApp(SMALL_TEST_FILE_NAME)
             assertWithTimeout(
                     {
-
-                        courseApp = CourseApp()
+                        courseApp = injector.getInstance<CourseApp>()
                         val validToken = tokenMap["oem1ec8wg7"] as String
-                        assertThat(courseApp.isUserLoggedIn(validToken, "oem1ec8wg7"), present(isTrue))
-                        assertThat(courseApp.isUserLoggedIn(validToken, "bmz3wmx6wt"), present(isTrue))
+                        assertThat(courseApp.isUserLoggedIn(validToken, "oem1ec8wg7").join(), present(isTrue))
+                        assertThat(courseApp.isUserLoggedIn(validToken, "bmz3wmx6wt").join(), present(isTrue))
 
                     }
             )
@@ -207,10 +205,11 @@ class CourseAppStaffTestHw0 {
             val tokenMap = initCourseApp(LARGE_TEST_FILE_NAME)
             assertWithTimeout(
                     {
-                        SecureStorageImpl.clear()
-                        courseApp = CourseApp()
-                        val validToken = courseApp.login("User8", "password")
-                        assertThat(courseApp.isUserLoggedIn(validToken, "vgl9xcjbfj"), absent())
+                        val storageFactory = injector.getInstance<SecureHashMapStorageFactoryImpl>()
+                        storageFactory.clear()
+                        courseApp = injector.getInstance<CourseApp>()
+                        val validToken = courseApp.login("User8", "password").join()
+                        assertThat(courseApp.isUserLoggedIn(validToken, "vgl9xcjbfj").join(), absent())
 
 
                     }

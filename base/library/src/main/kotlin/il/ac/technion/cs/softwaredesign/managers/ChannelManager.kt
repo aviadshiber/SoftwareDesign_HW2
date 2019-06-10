@@ -30,7 +30,8 @@ class ChannelManager
                     @ChannelIdSeqGenerator private val channelIdGenerator: ISequenceGenerator,
                     @ChannelByUserCountStorage private val channelsByUsersCountStorage: SecureStorage,
                     @ChannelByActiveUserCountStorage private val channelsByActiveUsersCountStorage: SecureStorage,
-                    //@ChannelByMsgCountStorage private val channelByMsgCountStorage: SecureStorage,
+                    @ChannelMembersStorage private val channelMembersStorage: SecureStorage,
+                    @ChannelOperatorsStorage private val channelOperatorsStorage: SecureStorage,
                     @ChannelMessagesTreesStorage private val channelMessagesTreesStorage: SecureStorage
 ) : IChannelManager {
     private val defaultCountIdKey: () -> CountIdKey = { CountIdKey() }
@@ -173,50 +174,67 @@ class ChannelManager
     }
 
     override fun getChannelMembersList(channelId: Long): CompletableFuture<List<Long>> {
-        return validateChannelIdFuture(channelId).thenCompose {
-            channelStorage.getPropertyListByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_MEMBERS_LIST)}
-                .thenApply { it ?: throw IllegalArgumentException("channel id does not exist") }
+        return validateChannelIdFuture(channelId).thenApply {
+            SecureAVLTree(channelMembersStorage, defaultIdKey, channelId)
+                    .keys().map { it.getId() }.toList()
+        }
     }
+
     override fun addMemberToChannel(channelId: Long, memberId: Long) :CompletableFuture<Unit> {
         return validateChannelIdFuture(channelId)
-                .thenCompose { getChannelMembersList(channelId) }
-                .thenApply { validateMemberNotInList(it, memberId); it.toMutableList() }
-                .thenApply { it.add(memberId); it }
-                .thenCompose { list ->updateChannelMemberList(channelId,list)}
-                .thenApply { size->
-                    updateKeyInTree(TREE_CHANNELS_BY_USERS_COUNT, channelId, size - 1L, size)
+                .thenCompose {
+                    val membersTree = SecureAVLTree(channelMembersStorage, defaultIdKey, channelId)
+                    if (membersTree.contains(IdKey(memberId))) throw IllegalAccessException("member id already exists in channels list")
+                    membersTree.put(IdKey(memberId))
+                    channelStorage.getPropertyLongByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS)
+                            .thenCompose { currentSize ->
+                                val newSize = currentSize!! + 1L
+                                updateKeyInTree(TREE_CHANNELS_BY_USERS_COUNT, channelId, currentSize, newSize)
+                                channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS, newSize)
+                            }
                 }
     }
 
     override fun removeMemberFromChannel(channelId: Long, memberId: Long) :CompletableFuture<Unit> {
         return validateChannelIdFuture(channelId)
-                .thenCompose { getChannelMembersList(channelId) }
-                .thenApply { validateMemberInList(it, memberId); it.toMutableList() }
-                .thenApply { it.remove(memberId); it }
-                .thenCompose { list ->updateChannelMemberList(channelId,list)}
-                .thenApply { size->
-                    updateKeyInTree(TREE_CHANNELS_BY_USERS_COUNT, channelId, size + 1L, size)
+                .thenCompose {
+                    val membersTree = SecureAVLTree(channelMembersStorage, defaultIdKey, channelId)
+                    if (!membersTree.contains(IdKey(memberId))) throw IllegalAccessException("member id does not exists in channels list")
+                    membersTree.delete(IdKey(memberId))
+                    channelStorage.getPropertyLongByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS)
+                            .thenCompose { currentSize ->
+                                val newSize = currentSize!! - 1L
+                                updateKeyInTree(TREE_CHANNELS_BY_USERS_COUNT, channelId, currentSize, newSize)
+                                channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS, newSize)
+                            }
                 }
     }
 
 
     /** OPERATORS LIST **/
     override fun getChannelOperatorsList(channelId: Long): CompletableFuture<List<Long>> {
-        return validateChannelIdFuture(channelId)
-                .thenCompose {
-                    channelStorage.getPropertyListByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_OPERATORS_LIST) }
-                .thenApply { it ?: throw IllegalArgumentException("channel id does not exist") }
+        return validateChannelIdFuture(channelId).thenApply {
+            SecureAVLTree(channelOperatorsStorage, defaultIdKey, channelId)
+                    .keys().map { it.getId() }.toList()
+        }
     }
 
     override fun addOperatorToChannel(channelId: Long, operatorId: Long) :CompletableFuture<Unit> {
-        return validateChannelIdFuture(channelId).thenCompose {  getChannelOperatorsList(channelId)}
-                .thenCompose { list-> addOperatorToChannelListFuture(list, operatorId, channelId) }
+        return validateChannelIdFuture(channelId)
+                .thenApply {
+                    val membersTree = SecureAVLTree(channelOperatorsStorage, defaultIdKey, channelId)
+                    membersTree.put(IdKey(operatorId))
+                }
     }
 
     override fun removeOperatorFromChannel(channelId: Long, operatorId: Long):CompletableFuture<Unit> {
-        return validateChannelIdFuture(channelId).thenCompose {getChannelOperatorsList(channelId)}
-                .thenCompose { list-> removeOperatorFromListFuture(list, operatorId, channelId) }
+        return validateChannelIdFuture(channelId)
+                .thenApply {
+                    val membersTree = SecureAVLTree(channelOperatorsStorage, defaultIdKey, channelId)
+                    membersTree.delete(IdKey(operatorId))
+                }
     }
+
 
     /** CHANNEL COMPLEX STATISTICS **/
     override fun getNumberOfTotalChannelMessages() : CompletableFuture<Long> {

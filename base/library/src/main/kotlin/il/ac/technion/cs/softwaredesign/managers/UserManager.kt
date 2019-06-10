@@ -30,6 +30,7 @@ import kotlin.math.min
 class UserManager
 @Inject constructor(private val userStorage: IUserStorage,
                     private val statisticsManager: IStatisticsManager,
+                    @MemberDetailsStorage private val userDetailsStorage: SecureStorage,
                     @UserMessageIdSeqGenerator private val userIdGenerator: ISequenceGenerator,
                     @UsersByChannelCountStorage private val usersByChannelsCountStorage: SecureStorage,
                     @UsersMessagesTreesStorage private val usersMessagesTreesStorage: SecureStorage
@@ -126,10 +127,18 @@ class UserManager
 
 
     /** CHANNELS OF USER **/
-    override fun getChannelListOfUser(userId: Long): CompletableFuture<List<Long>> {
-        return userStorage.getPropertyListByUserId(userId, LIST_PROPERTY)
-                .thenApply { it ?: throw IllegalArgumentException("user id does not exist") }
+//    override fun getChannelListOfUser(userId: Long): CompletableFuture<List<Long>> {
+//        return userStorage.getPropertyListByUserId(userId, LIST_PROPERTY)
+//                .thenApply { it ?: throw IllegalArgumentException("user id does not exist") }
+//
+//    }
 
+    override fun getChannelListOfUser(userId: Long): CompletableFuture<List<Long>> {
+        return isUserIdExists(userId).thenApply {
+            if (!it) throw IllegalArgumentException("User id does not exist")
+            else SecureAVLTree(usersMessagesTreesStorage, defaultIdKey, userId)
+                        .keys().map { it.getId() }.toList()
+        }
     }
 
     override fun getUserChannelListSize(userId: Long): CompletableFuture<Long> {
@@ -137,34 +146,67 @@ class UserManager
                 .thenApply { it ?: throw IllegalArgumentException("user id does not exist") }
     }
 
+//    override fun addChannelToUser(userId: Long, channelId: Long): CompletableFuture<Unit> {
+//        return getChannelListOfUser(userId).thenApply { ArrayList<Long>(it) }.thenApply {
+//            if (it.contains(channelId)) throw IllegalAccessException("channel id already exists in users list")
+//            it.add(channelId)
+//            it
+//        }.thenCompose { updateListFuture(userId, it) }
+//                .thenApply {
+//            // update tree:
+//            val currentSize = it.size.toLong()
+//            updateUserNodeFuture(userId, oldCount = currentSize - 1L, newCount = currentSize)
+//        }
+//    }
+
+//    override fun removeChannelFromUser(userId: Long, channelId: Long): CompletableFuture<Unit> {
+//        return getChannelListOfUser(userId)
+//                .thenApply { ArrayList<Long>(it) }
+//                .thenApply {
+//                    if (!it.contains(channelId))
+//                        throw IllegalAccessException("channel id does not exists in users list")
+//                    it.remove(channelId)
+//                    it
+//                }.thenCompose { updateListFuture(userId, it) }.thenApply {
+//                    // update tree:
+//                    val currentSize = it.size.toLong()
+//                    updateUserNodeFuture(userId, oldCount = currentSize + 1L, newCount = currentSize)
+//                }
+//    }
+
     override fun addChannelToUser(userId: Long, channelId: Long): CompletableFuture<Unit> {
-        return getChannelListOfUser(userId).thenApply { ArrayList<Long>(it) }.thenApply {
-            if (it.contains(channelId)) throw IllegalAccessException("channel id already exists in users list")
-            it.add(channelId)
-            it
-        }.thenCompose { updateListFuture(userId, it) }
-                .thenApply {
-            // update tree:
-            val currentSize = it.size.toLong()
-            updateUserNodeFuture(userId, oldCount = currentSize - 1L, newCount = currentSize)
+        return isUserIdExists(userId).thenCompose {
+            if (!it) throw IllegalArgumentException("User id does not exist")
+            else {
+                val userChannelTree = SecureAVLTree(usersMessagesTreesStorage, defaultIdKey, userId)
+                if (userChannelTree.contains(IdKey(channelId))) throw IllegalAccessException("channel id already exists in users list")
+                userChannelTree.put(IdKey(channelId))
+                userStorage.getPropertyLongByUserId(userId, MANAGERS_CONSTS.SIZE_PROPERTY)
+                        .thenCompose { currentSize ->
+                            val newSize = currentSize!! + 1L
+                            updateUserNodeFuture(userId, oldCount = currentSize, newCount = newSize)
+                            userStorage.setPropertyLongToUserId(userId, MANAGERS_CONSTS.SIZE_PROPERTY, newSize)
+                        }
+            }
         }
     }
 
     override fun removeChannelFromUser(userId: Long, channelId: Long): CompletableFuture<Unit> {
-        return getChannelListOfUser(userId)
-                .thenApply { ArrayList<Long>(it) }
-                .thenApply {
-                    if (!it.contains(channelId))
-                        throw IllegalAccessException("channel id does not exists in users list")
-                    it.remove(channelId)
-                    it
-                }.thenCompose { updateListFuture(userId, it) }.thenApply {
-                    // update tree:
-                    val currentSize = it.size.toLong()
-                    updateUserNodeFuture(userId, oldCount = currentSize + 1L, newCount = currentSize)
-                }
+        return isUserIdExists(userId).thenCompose {
+            if (!it) throw IllegalArgumentException("User id does not exist")
+            else {
+                val userChannelTree = SecureAVLTree(usersMessagesTreesStorage, defaultIdKey, userId)
+                if (!userChannelTree.contains(IdKey(channelId))) throw IllegalAccessException("channel id does not exists in users list")
+                userChannelTree.delete(IdKey(channelId))
+                userStorage.getPropertyLongByUserId(userId, MANAGERS_CONSTS.SIZE_PROPERTY)
+                        .thenCompose { currentSize ->
+                            val newSize = currentSize!! - 1L
+                            updateUserNodeFuture(userId, oldCount = currentSize, newCount = newSize)
+                            userStorage.setPropertyLongToUserId(userId, MANAGERS_CONSTS.SIZE_PROPERTY, newSize)
+                        }
+            }
+        }
     }
-
 
     /** USER CHANNELS & PRIVATE MESSAGES **/
     override fun addMessageToUser(userId: Long, msgId: Long): CompletableFuture<Unit> {

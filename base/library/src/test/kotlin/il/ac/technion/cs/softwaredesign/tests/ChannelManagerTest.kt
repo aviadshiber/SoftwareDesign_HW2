@@ -453,8 +453,8 @@ class ChannelManagerTest {
         members.forEach({ channelManager.addMemberToChannel(id, it).get() })
         operators.forEach({ channelManager.addOperatorToChannel(id, it).get() })
 
-        assertThat(channelManager.getChannelMembersList(id).get(), equalTo(members))
-        assertThat(channelManager.getChannelOperatorsList(id).get(), equalTo(operators))
+        assertThat(channelManager.getChannelMembersList(id).get(), equalTo(members.sorted()))
+        assertThat(channelManager.getChannelOperatorsList(id).get(), equalTo(operators.sorted()))
     }
 
     @Test
@@ -472,8 +472,8 @@ class ChannelManagerTest {
 
         members.removeAt(2)
         operators.removeAt(2)
-        assertThat(channelManager.getChannelMembersList(id).get(), equalTo(members.toList()))
-        assertThat(channelManager.getChannelOperatorsList(id).get(), equalTo(operators.toList()))
+        assertThat(channelManager.getChannelMembersList(id).get(), equalTo(members.sorted()))
+        assertThat(channelManager.getChannelOperatorsList(id).get(), equalTo(operators.sorted()))
     }
 
     @Test
