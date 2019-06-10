@@ -1,14 +1,28 @@
 package il.ac.technion.cs.softwaredesign
 
-class UserListener(private val id: Long) {
-    private var callbacks: MutableSet<ListenerCallback> = HashSet()
+import com.google.inject.Inject
+import il.ac.technion.cs.softwaredesign.managers.MessageManager
+import il.ac.technion.cs.softwaredesign.managers.UserManager
+import il.ac.technion.cs.softwaredesign.messages.Message
+import java.time.LocalDateTime
+import java.util.concurrent.CompletableFuture
+
+class UserListener {
+    private var callbacks= mutableListOf<ListenerCallback>()
+    @Inject
+    private lateinit var userManager:UserManager
+    @Inject
+    private lateinit var channelManager: UserManager
+    @Inject
+    private lateinit var messageManager: MessageManager
     /**
      * add a new callback
      * @param callback ListenerCallback
      * @return Boolean, true if callback added successfully and false if the callback is already contained in the set
      */
-    fun listen(callback: ListenerCallback): Boolean {
-        return callbacks.add(callback)
+    fun listen(callback: ListenerCallback): UserListener {
+        callbacks.add(callback)
+        return this
     }
 
     /**
@@ -16,9 +30,30 @@ class UserListener(private val id: Long) {
      * @param callback ListenerCallback
      * @return Boolean, true if callback removed successfully and false if the callback is not contained in the set
      */
-    fun unlisten(callback: ListenerCallback): Boolean {
-        return callbacks.remove(callback)
+    fun unlisten(callback: ListenerCallback): UserListener {
+        callbacks.remove(callback)
+        return this
     }
+
+    fun notifyOnMessageArrive(destUserId:Long,source:String,message: Message):CompletableFuture<Unit>{
+        return userManager.updateUserLastReadMsgId(destUserId,message.id)
+                .thenApply { message.received= LocalDateTime.now()}
+                .thenCompose { messageManager.updateMessageReceivedTime(message.id,message.received!!) }
+                .thenCompose { applyCallbacks(source, message) }
+    }
+
+    private fun applyCallbacks(source: String, message: Message): CompletableFuture<Unit> {
+        return callbacks.map { callback -> callback(source, message) }
+                .reduce { acc, completableFuture ->
+                    acc.thenCompose { completableFuture }
+                }
+    }
+
+    fun callbackExist(callback: ListenerCallback)= callbacks.find { it==callback } != null
+
+
+
+
 
     /**
      * check if there are no callbacks to this user
@@ -26,24 +61,4 @@ class UserListener(private val id: Long) {
      */
     fun isEmpty(): Boolean = callbacks.isEmpty()
 
-    /**
-     * getter for user id
-     * @return Long
-     */
-    fun getId(): Long = id
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as UserListener
-
-        if (id != other.id) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return id.hashCode()
-    }
 }

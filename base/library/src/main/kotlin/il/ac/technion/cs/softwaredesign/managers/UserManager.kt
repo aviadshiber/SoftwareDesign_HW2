@@ -173,7 +173,7 @@ class UserManager
         }
     }
 
-    override fun readAllChannelAndPrivateUserMessages(userId: Long): CompletableFuture<List<Long>> {
+    override fun getAllChannelAndPrivateUserMessages(userId: Long): CompletableFuture<List<Long>> {
         return isUserIdExists(userId).thenApply {
             if (!it) throw IllegalArgumentException("user id does not exist")
             else {

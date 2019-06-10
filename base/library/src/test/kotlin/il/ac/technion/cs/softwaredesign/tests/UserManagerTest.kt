@@ -541,14 +541,14 @@ class UserManagerTest {
                         .thenCompose { userManager.addMessageToUser(it, msgs[1]); ImmediateFuture { it } }
                         .thenCompose { userManager.addMessageToUser(it, msgs[2]); ImmediateFuture { it } }
                         .thenCompose { userManager.addMessageToUser(it, msgs[3]); ImmediateFuture { it } }
-                        .thenCompose { userManager.readAllChannelAndPrivateUserMessages(it) }
+                        .thenCompose { userManager.getAllChannelAndPrivateUserMessages(it) }
                         .join(),
                 equalTo(msgs.sorted())
         )
 
         val id = userManager.addUser(username+username, pwd).get()
         assertThat(
-            userManager.readAllChannelAndPrivateUserMessages(id).join(),
+            userManager.getAllChannelAndPrivateUserMessages(id).join(),
                 equalTo(emptyList())
         )
 
@@ -557,18 +557,18 @@ class UserManagerTest {
                         .thenCompose { userManager.addMessageToUser(id, msgs[1]) }
                         .thenCompose { userManager.addMessageToUser(id, msgs[2]) }
                         .thenCompose { userManager.addMessageToUser(id, msgs[3]) }
-                        .thenCompose { userManager.readAllChannelAndPrivateUserMessages(id) }
+                        .thenCompose { userManager.getAllChannelAndPrivateUserMessages(id) }
                         .join(),
                 equalTo(msgs.sorted())
         )
 
         assertThat(
-                userManager.readAllChannelAndPrivateUserMessages(id).join(),
+                userManager.getAllChannelAndPrivateUserMessages(id).join(),
                 equalTo(emptyList())
         )
 
         // user does not exist
-        assertThrows<IllegalArgumentException> { userManager.readAllChannelAndPrivateUserMessages(id*100L).joinException() }
+        assertThrows<IllegalArgumentException> { userManager.getAllChannelAndPrivateUserMessages(id*100L).joinException() }
     }
 
     @Test

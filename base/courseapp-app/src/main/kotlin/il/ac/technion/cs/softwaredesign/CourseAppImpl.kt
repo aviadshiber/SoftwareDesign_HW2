@@ -29,36 +29,31 @@ class CourseAppImpl
         val regex: Regex = Regex("#[#_A-Za-z0-9]*")
     }
 
-    private val userListeners: MutableSet<UserListener> = HashSet()
+    private val userListeners = mutableMapOf<Long, UserListener>()
 
-    // should be called from add listener
-    fun listen(userId: Long, callback: ListenerCallback) {
-        val userListener = UserListener(userId)
-        if (userListeners.contains(userListener)) {
-            val currentListener = userListeners.find { it == userListener }
-            currentListener!!.listen(callback)
-            userListeners.remove(currentListener)
-            userListeners.add(currentListener)
+    private fun isUserListening(userId: Long) = userListeners[userId] != null
+
+    private fun listen(userId: Long, callback: ListenerCallback) {
+        val userListener = userListeners[userId]
+        if (userListener == null) {
+            userListeners[userId] = UserListener().listen(callback)
         } else {
-            val currentListener = UserListener(userId)
-            currentListener.listen(callback)
-            userListeners.add(currentListener)
+            userListener.listen(callback)
         }
     }
 
-    // should be called from remove listener
-    fun unlisten(userId: Long, callback: ListenerCallback) {
-        val userListener = UserListener(userId)
-        val currentListener = userListeners.find { it == userListener }!!
-        currentListener.unlisten(callback)
-        if (currentListener.isEmpty()) userListeners.remove(currentListener)
+    private fun isCallbackExists(userId: Long, callback: ListenerCallback): Boolean {
+        val userListener = userListeners[userId] ?: return false
+        return userListener.callbackExist(callback)
     }
 
-    // should be called from broadcast, channel, and private
-    fun onChange(s: String, m: Message): CompletableFuture<Unit> {
-//        return listeners.map { it(s,m) }
-//                .reduce { acc, completableFuture -> acc.thenCompose {completableFuture } }
-        return ImmediateFuture { Unit }
+    private fun unlisten(userId: Long, callback: ListenerCallback) {
+        val userListener = userListeners[userId]
+        if (userListener == null) {
+            userListeners[userId] = UserListener().unlisten(callback)
+        } else {
+            userListener.unlisten(callback)
+        }
     }
 
     override fun login(username: String, password: String): CompletableFuture<String> {
@@ -169,7 +164,7 @@ class CourseAppImpl
                 .thenCompose { (userId, channelId) ->
                     decreaseNumberOfActiveMembersInChannelForLoggedInUserFuture(userId, channelId).thenApply { channelId }
                 }
-                .thenCompose{ channelId -> removeChannelWhenEmptyFuture(channelId) }
+                .thenCompose { channelId -> removeChannelWhenEmptyFuture(channelId) }
     }
 
     override fun isUserInChannel(token: String, channel: String, username: String): CompletableFuture<Boolean?> {
@@ -185,34 +180,146 @@ class CourseAppImpl
 
     override fun numberOfActiveUsersInChannel(token: String, channel: String): CompletableFuture<Long> {
         return validateUserPrivilegeOnChannelFuture(token, channel)
-                .thenCompose {channelId-> channelManager.getNumberOfActiveMembersInChannel(channelId) }
+                .thenCompose { channelId -> channelManager.getNumberOfActiveMembersInChannel(channelId) }
     }
 
     override fun numberOfTotalUsersInChannel(token: String, channel: String): CompletableFuture<Long> {
-        return validateUserPrivilegeOnChannelFuture(token, channel).
-                thenCompose { channelId->   channelManager.getNumberOfMembersInChannel(channelId)}
+        return validateUserPrivilegeOnChannelFuture(token, channel).thenCompose { channelId -> channelManager.getNumberOfMembersInChannel(channelId) }
     }
 
     // TODO: implement
     override fun addListener(token: String, callback: ListenerCallback): CompletableFuture<Unit> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return validateTokenFuture(token)
+                .thenCompose { tokenManager.getUserIdByToken(token).thenApply { it!! } }
+                .thenCompose { userId ->
+
+                    if (!isUserListening(userId)) {
+                        listen(userId, callback)
+                        val callbacks = userListeners[userId]!!
+                        val broadcastIds = messageManager.getAllBroadcastMessageIds().sorted()
+                        broadcastIds.map { broadcastId ->
+                            buildMessage(broadcastId)
+                                    .thenCompose { (source, message) ->
+                                        readBroadcastMessageByListener(userId, message, callbacks)
+                                    }
+                        }
+                                .reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
+                                .thenCompose {
+                                    userManager.getAllChannelAndPrivateUserMessages(userId)
+                                            .thenCompose { messagesIds ->
+                                                messagesIds.map { messageId ->
+                                                    buildMessage(messageId)
+                                                            .thenCompose { (source, message) ->
+                                                                callbacks.notifyOnMessageArrive(userId, source, message)
+                                                            }
+                                                }
+                                                        .reduce { acc,
+                                                                  completableFuture ->
+                                                            acc.thenCompose { completableFuture }
+                                                        }
+
+
+                                            }
+                                }
+                    } else {
+                        ImmediateFuture { listen(userId, callback) }
+                    }
+
+
+                }
+
     }
 
     override fun removeListener(token: String, callback: ListenerCallback): CompletableFuture<Unit> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return validateTokenFuture(token)
+                .thenCompose { tokenManager.getUserIdByToken(token).thenApply { it!! } }
+                .thenApply { userId -> if (!isCallbackExists(userId, callback)) throw NoSuchEntityException() else userId }
+                .thenApply { userId -> unlisten(userId, callback) }
     }
 
     override fun channelSend(token: String, channel: String, message: Message): CompletableFuture<Unit> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return validateTokenFuture(token)
+                .thenCompose { validateChannelNameExistsFuture(channel) }
+                .thenCompose { tokenManager.getUserIdByToken(token).thenApply { it!! } }
+                .thenCompose { userId -> channelManager.getChannelIdByName(channel).thenApply { Pair(userId, it!!) } }
+                .thenCompose { (userId, channelId) -> validateMembershipInChannelFuture(userId, channelId).thenApply { Pair(userId, channelId) } }
+                .thenCompose { (userId, channelId) -> userManager.getUsernameById(userId).thenApply { Triple(userId, channelId, it) } }
+                .thenCompose { (userId, channelId, userName) ->
+                    val source = "$channel@$userName"
+                    messageManager.addMessage(message.id, message.media.ordinal.toLong()
+                            , message.contents, message.created, IMessageManager.MessageType.CHANNEL, source
+                            , channelId = channelId).thenApply { Pair(channelId, source) }
+                }
+                .thenCompose { (channelId, source) -> channelManager.addMessageToChannel(channelId, message.id).thenApply { Pair(channelId, source) } }
+                .thenCompose { (channelId, source) -> channelManager.getChannelMembersList(channelId).thenApply { Pair(it, source) } }
+                .thenCompose { (list, source) ->
+                    list.map { memberId -> sendPrivateOrChannelMessageToUser(memberId, source, message) }
+                            .reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
+                }
     }
 
     override fun broadcast(token: String, message: Message): CompletableFuture<Unit> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return validateTokenFuture(token)
+                .thenCompose { tokenManager.getUserIdByToken(token).thenApply { it!! } }
+                .thenCompose { userId -> validateUserIsAdminFuture(userId) }
+                .thenCompose { userManager.getTotalUsers().thenApply { it } }
+                .thenCompose { numOfUsers ->
+                    messageManager.addMessage(message.id, message.media.ordinal.toLong()
+                            , message.contents, message.created, IMessageManager.MessageType.BROADCAST
+                            , source = "BROADCAST", startCounter = numOfUsers)
+                }
+                .thenCompose { sendBroadcastMessageToListeners(message) }
+
     }
 
-    override fun privateSend(token: String, user: String, message: Message): CompletableFuture<Unit> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    private fun sendBroadcastMessageToListeners(message: Message): CompletableFuture<Unit> {
+        return userListeners.map { (userId, listener) ->
+            readBroadcastMessageByListener(userId, message, listener)
+        }.reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
     }
+
+    private fun readBroadcastMessageByListener(userId: Long, message: Message, listener: UserListener): CompletableFuture<Unit> {
+        return if (isUserBeenCreatedBeforeMessage(userId, message)) {
+            userManager.getUserLastReadMsgId(userId).thenCompose {
+                if (it < message.id)
+                    listener.notifyOnMessageArrive(userId, "BROADCAST", message)
+                            .thenCompose { messageManager.decreaseMessageCounterBy(message.id) }
+                else
+                    ImmediateFuture { Unit }
+            }
+        } else {
+            ImmediateFuture { Unit }
+        }
+    }
+
+    private fun isUserBeenCreatedBeforeMessage(userId: Long, message: Message) =
+            userId < message.id
+
+    override fun privateSend(token: String, user: String, message: Message): CompletableFuture<Unit> {
+        return validateTokenFuture(token)
+                .thenCompose { userManager.getUserId(user) }
+                .thenApply { it ?: throw NoSuchEntityException() }
+                .thenCompose { destUserId ->
+                    tokenManager.getUserIdByToken(token).thenApply { Pair(it!!, destUserId) }
+                }.thenCompose { (srcId, destId) ->
+                    userManager.getUsernameById(srcId).thenApply { Pair("@$it", destId) }
+                }.thenCompose { (srcName, destId) ->
+                    messageManager.addMessage(message.id, message.media.ordinal.toLong()
+                            , message.contents, message.created, IMessageManager.MessageType.PRIVATE
+                            , source = srcName, destUserId = destId).thenApply { Pair(srcName, destId) }
+                }.thenCompose { (srcName, destUserId) ->
+                    sendPrivateOrChannelMessageToUser(destUserId, srcName, message)
+                }
+    }
+
+    private fun sendPrivateOrChannelMessageToUser(destUserId: Long, source: String, message: Message): CompletableFuture<Unit> {
+        return if (isUserListening(destUserId)) {
+            userListeners[destUserId]!!.notifyOnMessageArrive(destUserId, source, message)
+        } else {
+            userManager.addMessageToUser(destUserId, message.id)
+        }
+    }
+
 
     override fun fetchMessage(token: String, id: Long): CompletableFuture<Pair<String, Message>> {
         return validateTokenFuture(token)
@@ -228,7 +335,7 @@ class CourseAppImpl
                         messageManager.getMessageChannelId(id)
                     }
                 }.thenCompose { channelId ->
-                    tokenManager.getUserIdByToken(token).thenApply { userId->Pair<Long, Long>(userId!!, channelId) }
+                    tokenManager.getUserIdByToken(token).thenApply { userId -> Pair<Long, Long>(userId!!, channelId) }
                 }.thenCompose { (userId, channelId) ->
                     isUserMember(userId, channelId)
                 }.thenCompose {
@@ -302,7 +409,7 @@ class CourseAppImpl
         return if (userId == null)
             throw NoSuchEntityException()
         else
-            isUserMember (userId, channelId).thenApply { if (!it) throw NoSuchEntityException() }
+            isUserMember(userId, channelId).thenApply { if (!it) throw NoSuchEntityException() }
                     .thenApply { Pair(userId, channelId) }
     }
 
@@ -392,8 +499,7 @@ class CourseAppImpl
                 .thenCompose {
                     if (it) {
                         channelManager.increaseNumberOfActiveMembersInChannelBy(channelId)
-                    }
-                    else ImmediateFuture { Unit }
+                    } else ImmediateFuture { Unit }
                 }
                 .exceptionally { /* if user try to join again, its ok */ }
     }
@@ -427,16 +533,16 @@ class CourseAppImpl
     }
 
     private fun updateUserStatusInChannels(userId: Long, newStatus: IUserManager.LoginStatus): CompletableFuture<Unit> {
-        return userManager.getChannelListOfUser(userId).thenCompose {
-            list->
-            if(newStatus==IUserManager.LoginStatus.IN && list.isNotEmpty()){
-                list.map { channelId-> channelManager.increaseNumberOfActiveMembersInChannelBy(channelId)  }
-                        .reduce { acc, completableFuture -> acc.thenCompose {completableFuture  } }
-            }else if(newStatus==IUserManager.LoginStatus.OUT && list.isNotEmpty()){
-                list.map { channelId-> channelManager.decreaseNumberOfActiveMembersInChannelBy(channelId)
-                        .thenCompose {  channelManager.removeOperatorFromChannel(channelId, userId) }
-                     }.reduce { acc, completableFuture -> acc.thenCompose {completableFuture  } }
-            }else{
+        return userManager.getChannelListOfUser(userId).thenCompose { list ->
+            if (newStatus == IUserManager.LoginStatus.IN && list.isNotEmpty()) {
+                list.map { channelId -> channelManager.increaseNumberOfActiveMembersInChannelBy(channelId) }
+                        .reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
+            } else if (newStatus == IUserManager.LoginStatus.OUT && list.isNotEmpty()) {
+                list.map { channelId ->
+                    channelManager.decreaseNumberOfActiveMembersInChannelBy(channelId)
+                            .thenCompose { channelManager.removeOperatorFromChannel(channelId, userId) }
+                }.reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
+            } else {
                 ImmediateFuture { Unit }
             }
         }
