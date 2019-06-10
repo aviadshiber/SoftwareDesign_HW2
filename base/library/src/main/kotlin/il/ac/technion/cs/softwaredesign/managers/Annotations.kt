@@ -2,10 +2,13 @@ package il.ac.technion.cs.softwaredesign.managers
 
 import com.google.inject.BindingAnnotation
 
+/**
+ * This file used to define annotations for Dependency Injection will be used by Guice
+ */
 @Target(AnnotationTarget.CONSTRUCTOR, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.RUNTIME)
 @BindingAnnotation
-annotation class UserIdSeqGenerator
+annotation class UserMessageIdSeqGenerator
 
 @Target(AnnotationTarget.CONSTRUCTOR, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.RUNTIME)

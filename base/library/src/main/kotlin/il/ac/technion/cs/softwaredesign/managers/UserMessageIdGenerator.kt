@@ -8,8 +8,17 @@ import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * User & Message id's generator
+ * @property statisticsStorage IStatisticsStorage
+ * @constructor
+ */
 @Singleton
-class UserIdGenerator @Inject constructor(private val statisticsStorage: IStatisticsStorage) : ISequenceGenerator {
+class UserMessageIdGenerator @Inject constructor(private val statisticsStorage: IStatisticsStorage) : ISequenceGenerator {
+    /**
+     * generate unique id for user or message
+     * @return CompletableFuture<Long>
+     */
     override fun next(): CompletableFuture<Long> {
         return statisticsStorage.getLongValue(NUMBER_OF_USERS).thenApply { currentValue ->
             if (currentValue == null) throw NullPointerException("Number of channels must be valid key")

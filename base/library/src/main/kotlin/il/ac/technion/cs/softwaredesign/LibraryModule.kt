@@ -31,7 +31,7 @@ class LibraryModule : KotlinModule() {
         bind<IChannelStorage>().to<SecureChannelStorage>()
 
         //bindInterceptor(createSecureStorageFactoryMatcher(),Matchers.any(), SecureStorageFactoryCacheConcern)
-        bind<ISequenceGenerator>().annotatedWith<UserIdSeqGenerator>().to<UserIdGenerator>()
+        bind<ISequenceGenerator>().annotatedWith<UserMessageIdSeqGenerator>().to<UserMessageIdGenerator>()
         bind<ISequenceGenerator>().annotatedWith<ChannelIdSeqGenerator>().to<ChannelIdGenerator>()
         bind<IUserStorage>().to<SecureUserStorage>()
         bind<IMessageStorage>().to<SecureMessageStorage>()

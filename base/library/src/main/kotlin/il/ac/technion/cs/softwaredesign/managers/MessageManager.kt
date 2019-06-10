@@ -16,7 +16,7 @@ import io.github.vjames19.futures.jdk8.ImmediateFuture
 
 class MessageManager @Inject constructor(
         private val statisticsManager: IStatisticsManager,
-        @UserIdSeqGenerator private val messageIdSeqGenerator: ISequenceGenerator, // user id seq generator and msg seq generator should be the same one
+        @UserMessageIdSeqGenerator private val messageIdSeqGenerator: ISequenceGenerator, // user id seq generator and msg seq generator should be the same one
         @MessageDetailsStorage private val messageDetailsStorage: SecureStorage,
         private val messageStorage: IMessageStorage
 ) : IMessageManager {

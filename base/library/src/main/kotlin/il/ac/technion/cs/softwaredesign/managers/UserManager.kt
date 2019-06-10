@@ -29,7 +29,7 @@ import kotlin.math.min
 class UserManager
 @Inject constructor(private val userStorage: IUserStorage,
                     private val statisticsManager: IStatisticsManager,
-                    @UserIdSeqGenerator private val userIdGenerator: ISequenceGenerator,
+                    @UserMessageIdSeqGenerator private val userIdGenerator: ISequenceGenerator,
                     @UsersByChannelCountStorage private val usersByChannelsCountStorage: SecureStorage,
                     @UsersMessagesTreesStorage private val usersMessagesTreesStorage: SecureStorage
 ) : IUserManager {
