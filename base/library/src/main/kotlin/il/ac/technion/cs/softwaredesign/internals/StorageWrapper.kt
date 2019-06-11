@@ -1,4 +1,4 @@
-package il.ac.technion.cs.softwaredesign.storage.datastructures
+package il.ac.technion.cs.softwaredesign.internals
 
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.ConversionUtils
@@ -20,7 +20,7 @@ class StorageWrapper(private val secureStorage: SecureStorage, keyPrefix: Long?)
         return secureStorage.read(completeKey).join()
     }
 
-    fun write(key: ByteArray, value: ByteArray): Unit {
+    fun write(key: ByteArray, value: ByteArray) {
         val completeKey = keyPrefixByteArray + key
         return secureStorage.write(completeKey, value).join()
     }

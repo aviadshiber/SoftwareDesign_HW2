@@ -1,24 +1,21 @@
 package il.ac.technion.cs.softwaredesign
 
 import com.authzee.kotlinguice4.KotlinModule
-
 import com.google.inject.Provides
 import com.google.inject.Singleton
-import com.google.inject.matcher.Matcher
-import com.google.inject.matcher.Matchers
-import il.ac.technion.cs.softwaredesign.managers.*
 import il.ac.technion.cs.softwaredesign.internals.ISequenceGenerator
+import il.ac.technion.cs.softwaredesign.managers.*
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.SecureStorageFactory
 import il.ac.technion.cs.softwaredesign.storage.api.*
 import il.ac.technion.cs.softwaredesign.storage.channels.IChannelStorage
-import il.ac.technion.cs.softwaredesign.storage.users.IUserStorage
 import il.ac.technion.cs.softwaredesign.storage.channels.SecureChannelStorage
 import il.ac.technion.cs.softwaredesign.storage.messages.IMessageStorage
 import il.ac.technion.cs.softwaredesign.storage.messages.SecureMessageStorage
 import il.ac.technion.cs.softwaredesign.storage.proxies.SecureStorageCache
 import il.ac.technion.cs.softwaredesign.storage.statistics.IStatisticsStorage
 import il.ac.technion.cs.softwaredesign.storage.statistics.SecureStatisticsStorage
+import il.ac.technion.cs.softwaredesign.storage.users.IUserStorage
 import il.ac.technion.cs.softwaredesign.storage.users.SecureUserStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES
 import javax.inject.Inject
@@ -39,11 +36,6 @@ class LibraryModule : KotlinModule() {
         bind<IUserManager>().to<UserManager>()
         bind<IMessageManager>().to<MessageManager>()
         bind<IChannelManager>().to<ChannelManager>()
-    }
-
-    private fun createSecureStorageFactoryMatcher(): Matcher<in Class<*>>? {
-        return Matchers.inPackage(Package.getPackage("il.ac.technion.cs.softwaredesign.storage"))
-                .and(Matchers.subclassesOf(SecureStorageFactory::class.java))
     }
 
     private fun SecureStorage.addCache() :SecureStorage{

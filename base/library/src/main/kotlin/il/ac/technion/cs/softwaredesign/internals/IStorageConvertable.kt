@@ -1,4 +1,4 @@
-package il.ac.technion.cs.softwaredesign.storage.api
+package il.ac.technion.cs.softwaredesign.internals
 
 /**
  * This interface defines an object that can be converted into byte array and vice versa

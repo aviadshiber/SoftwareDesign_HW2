@@ -1,4 +1,4 @@
-package il.ac.technion.cs.softwaredesign.storage.datastructures
+package il.ac.technion.cs.softwaredesign.internals
 
 import il.ac.technion.cs.softwaredesign.storage.api.ISecureStorageKey
 import il.ac.technion.cs.softwaredesign.storage.utils.ConversionUtils

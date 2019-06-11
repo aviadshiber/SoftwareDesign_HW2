@@ -31,31 +31,6 @@ class CourseAppImpl
 
     private val userListeners = mutableMapOf<Long, UserListener>()
 
-    private fun isUserListening(userId: Long) = userListeners[userId] != null
-
-    private fun listen(userId: Long, callback: ListenerCallback) {
-        val userListener = userListeners[userId]
-        if (userListener == null) {
-            userListeners[userId] = UserListener(userManager, messageManager).listen(callback)
-        } else {
-            userListener.listen(callback)
-        }
-    }
-
-    private fun isCallbackExists(userId: Long, callback: ListenerCallback): Boolean {
-        val userListener = userListeners[userId] ?: return false
-        return userListener.callbackExist(callback)
-    }
-
-    private fun unlisten(userId: Long, callback: ListenerCallback) {
-        val userListener = userListeners[userId]
-        if (userListener == null) {
-            userListeners[userId] = UserListener(userManager, messageManager).unlisten(callback)
-        } else {
-            userListener.unlisten(callback)
-        }
-    }
-
     override fun login(username: String, password: String): CompletableFuture<String> {
         val hashedPassword = password.hashString(HASH_ALGORITHM)
         return userManager.getUserId(username).thenCompose { userId ->
@@ -372,6 +347,31 @@ class CourseAppImpl
 
     /** PRIVATES **/
 
+    private fun isUserListening(userId: Long) = userListeners[userId] != null
+
+    private fun listen(userId: Long, callback: ListenerCallback) {
+        val userListener = userListeners[userId]
+        if (userListener == null) {
+            userListeners[userId] = UserListener(userManager, messageManager).listen(callback)
+        } else {
+            userListener.listen(callback)
+        }
+    }
+
+    private fun isCallbackExists(userId: Long, callback: ListenerCallback): Boolean {
+        val userListener = userListeners[userId] ?: return false
+        return userListener.callbackExist(callback)
+    }
+
+    private fun unlisten(userId: Long, callback: ListenerCallback) {
+        val userListener = userListeners[userId]
+        if (userListener == null) {
+            userListeners[userId] = UserListener(userManager, messageManager).unlisten(callback)
+        } else {
+            userListener.unlisten(callback)
+        }
+    }
+
     private fun buildMessage(msgId: Long): CompletableFuture<Pair<String, Message>> {
         return messageManager.getMessageMediaType(msgId)
                 .thenApply {
@@ -443,14 +443,18 @@ class CourseAppImpl
                     .thenApply { Pair(userId, channelId) }
     }
 
-    private fun validateUserIsOperatorOrAdmin(initiatorUserId: Long, channelId: Long, operatorPrivilege: IUserManager.PrivilegeLevel): CompletableFuture<Triple<Long, Long, IUserManager.PrivilegeLevel>> {
+    private fun validateUserIsOperatorOrAdmin(initiatorUserId: Long, channelId: Long,
+                                              operatorPrivilege: IUserManager.PrivilegeLevel)
+            : CompletableFuture<Triple<Long, Long, IUserManager.PrivilegeLevel>> {
         return isUserOperator(initiatorUserId, channelId).thenApply {
             if (!it && operatorPrivilege != IUserManager.PrivilegeLevel.ADMIN)
                 throw UserNotAuthorizedException()
         }.thenApply { Triple(initiatorUserId, channelId, operatorPrivilege) }
     }
 
-    private fun validateUserIsOperatorOrChannelAdmin(initiatorUserId: Long, channelId: Long, operatorPrivilege: IUserManager.PrivilegeLevel?, userId: Long?): CompletableFuture<Unit> {
+    private fun validateUserIsOperatorOrChannelAdmin(initiatorUserId: Long, channelId: Long,
+                                                     operatorPrivilege: IUserManager.PrivilegeLevel?,
+                                                     userId: Long?): CompletableFuture<Unit> {
         return isUserOperator(initiatorUserId, channelId)
                 .thenApply {
                     if (!it && operatorPrivilege == IUserManager.PrivilegeLevel.ADMIN && (userId == null || userId != initiatorUserId))
@@ -459,7 +463,8 @@ class CourseAppImpl
     }
 
     private fun validateMembershipInChannelFuture(initiatorUserId: Long, channelId: Long) =
-            isUserMember(initiatorUserId, channelId).thenApply { if (!it) throw UserNotAuthorizedException() }.thenApply { Pair(initiatorUserId, channelId) }
+            isUserMember(initiatorUserId, channelId).thenApply { if (!it) throw UserNotAuthorizedException() }
+                    .thenApply { Pair(initiatorUserId, channelId) }
 
     private fun validateUserPrivilegeOnChannelFuture(token: String, channel: String): CompletableFuture<Long> {
         return preValidations(token, channel)
@@ -472,7 +477,8 @@ class CourseAppImpl
                 }
     }
 
-    private fun validateUserIsAdminOrMemberOfChannel(privilege: IUserManager.PrivilegeLevel, initiatorUserId: Long, channelId: Long): CompletableFuture<Long> {
+    private fun validateUserIsAdminOrMemberOfChannel(privilege: IUserManager.PrivilegeLevel,
+                                                     initiatorUserId: Long, channelId: Long): CompletableFuture<Long> {
         return if (privilege != IUserManager.PrivilegeLevel.ADMIN)
             isUserMember(initiatorUserId, channelId)
                     .thenApply { isUserMember -> if (!isUserMember) throw UserNotAuthorizedException() }
@@ -566,12 +572,14 @@ class CourseAppImpl
         return userManager.getChannelListOfUser(userId).thenCompose { list ->
             if (newStatus == IUserManager.LoginStatus.IN && list.isNotEmpty()) {
                 list.map { channelId -> channelManager.increaseNumberOfActiveMembersInChannelBy(channelId) }
-                        .reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
+                        .reduce { acc, completableFuture ->
+                            acc.thenCompose { completableFuture }
+                        }
             } else if (newStatus == IUserManager.LoginStatus.OUT && list.isNotEmpty()) {
-                list.map { channelId ->
-                    channelManager.decreaseNumberOfActiveMembersInChannelBy(channelId)
-                            .thenCompose { channelManager.removeOperatorFromChannel(channelId, userId) }
-                }.reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
+                list.map { channelId -> channelManager.decreaseNumberOfActiveMembersInChannelBy(channelId) }
+                        .reduce { acc, completableFuture ->
+                            acc.thenCompose { completableFuture }
+                        }
             } else {
                 ImmediateFuture { Unit }
             }
@@ -594,7 +602,8 @@ class CourseAppImpl
         val positiveNumberSign = 1
         val numberBase = 16
         val hashFunc = MessageDigest.getInstance(hashAlgorithm)
-        return BigInteger(positiveNumberSign, hashFunc.digest(this.toByteArray())).toString(numberBase).padStart(32, '0')
+        return BigInteger(positiveNumberSign, hashFunc.digest(this.toByteArray())).toString(numberBase)
+                .padStart(32, '0')
     }
 
     private fun isUserOperator(userId: Long, channelId: Long): CompletableFuture<Boolean> {

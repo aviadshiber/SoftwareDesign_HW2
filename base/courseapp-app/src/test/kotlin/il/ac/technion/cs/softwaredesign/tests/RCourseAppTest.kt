@@ -1281,7 +1281,7 @@ class RCourseAppTest {
         courseApp.logout(operatorToken).get()
         val operatorToken2 = courseApp.login("Oper", "pass").get()
 
-        assertDoesNotThrow { courseApp.channelKick(operatorToken2, "#TestChannel", "admin").join() }
+        courseApp.channelKick(operatorToken2, "#TestChannel", "admin").join()
     }
 
     @Test

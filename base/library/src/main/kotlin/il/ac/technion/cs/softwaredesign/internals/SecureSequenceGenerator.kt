@@ -1,9 +1,7 @@
-package il.ac.technion.cs.softwaredesign.storage.datastructures
+package il.ac.technion.cs.softwaredesign.internals
 
 import com.google.inject.BindingAnnotation
-import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.ConversionUtils
-import il.ac.technion.cs.softwaredesign.internals.ISequenceGenerator
 import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST
 import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.LAST_GENERATED_ID
 import javax.inject.Singleton

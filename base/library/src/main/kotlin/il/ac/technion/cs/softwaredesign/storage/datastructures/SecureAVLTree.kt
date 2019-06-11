@@ -1,15 +1,12 @@
 package il.ac.technion.cs.softwaredesign.storage.datastructures
 
-import il.ac.technion.cs.softwaredesign.internals.IPointer
-import il.ac.technion.cs.softwaredesign.internals.ISequenceGenerator
-import il.ac.technion.cs.softwaredesign.storage.api.IStorageConvertable
-import il.ac.technion.cs.softwaredesign.storage.*
+import il.ac.technion.cs.softwaredesign.internals.*
+import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.api.ISecureStorageKey
 import il.ac.technion.cs.softwaredesign.storage.utils.ConversionUtils
 import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.ROOT_INIT_INDEX
 import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.ROOT_KEY
 import il.ac.technion.cs.softwaredesign.storage.utils.TREE_CONST.SECURE_AVL_STORAGE_NUM_PROPERTIES
-import java.lang.NullPointerException
 import java.util.*
 
 /**
@@ -91,7 +88,7 @@ constructor(private val primitiveStorage: SecureStorage, private val keyDefault:
      * clear tree
      */
     fun clear() {
-        root = null;
+        root = null
     }
 
     /**
@@ -835,7 +832,7 @@ constructor(private val primitiveStorage: SecureStorage, private val keyDefault:
         private fun extractDetails(storedValue: ByteArray): Pair<MutableList<Long>, Key> {
             var start=0
             var end=Long.SIZE_BYTES-1
-            var details= mutableListOf<Long>()
+            val details = mutableListOf<Long>()
             val numOfLongValues=SECURE_AVL_STORAGE_NUM_PROPERTIES-2
             for(i in 0..numOfLongValues) {
                 details.add(storedValue.sliceArray(IntRange(start,end)).bytesToLong())

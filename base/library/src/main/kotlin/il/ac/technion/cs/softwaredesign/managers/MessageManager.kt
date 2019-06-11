@@ -1,10 +1,10 @@
 package il.ac.technion.cs.softwaredesign.managers
 
 import il.ac.technion.cs.softwaredesign.internals.ISequenceGenerator
+import il.ac.technion.cs.softwaredesign.internals.IdKey
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.api.IMessageManager
 import il.ac.technion.cs.softwaredesign.storage.api.IStatisticsManager
-import il.ac.technion.cs.softwaredesign.storage.datastructures.IdKey
 import il.ac.technion.cs.softwaredesign.storage.datastructures.SecureAVLTree
 import il.ac.technion.cs.softwaredesign.storage.messages.IMessageStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS

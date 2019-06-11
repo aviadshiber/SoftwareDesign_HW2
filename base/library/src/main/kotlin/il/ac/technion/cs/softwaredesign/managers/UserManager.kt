@@ -1,14 +1,14 @@
 package il.ac.technion.cs.softwaredesign.managers
 
 
+import il.ac.technion.cs.softwaredesign.internals.CountIdKey
 import il.ac.technion.cs.softwaredesign.internals.ISequenceGenerator
+import il.ac.technion.cs.softwaredesign.internals.IdKey
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.api.IStatisticsManager
 import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
 import il.ac.technion.cs.softwaredesign.storage.api.IUserManager.LoginStatus
 import il.ac.technion.cs.softwaredesign.storage.api.IUserManager.PrivilegeLevel
-import il.ac.technion.cs.softwaredesign.storage.datastructures.CountIdKey
-import il.ac.technion.cs.softwaredesign.storage.datastructures.IdKey
 import il.ac.technion.cs.softwaredesign.storage.datastructures.SecureAVLTree
 import il.ac.technion.cs.softwaredesign.storage.users.IUserStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS

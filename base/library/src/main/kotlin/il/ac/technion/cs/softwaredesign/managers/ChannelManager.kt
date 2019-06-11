@@ -1,12 +1,12 @@
 package il.ac.technion.cs.softwaredesign.managers
 
+import il.ac.technion.cs.softwaredesign.internals.CountIdKey
 import il.ac.technion.cs.softwaredesign.internals.ISequenceGenerator
+import il.ac.technion.cs.softwaredesign.internals.IdKey
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.api.IChannelManager
 import il.ac.technion.cs.softwaredesign.storage.api.IStatisticsManager
 import il.ac.technion.cs.softwaredesign.storage.channels.IChannelStorage
-import il.ac.technion.cs.softwaredesign.storage.datastructures.CountIdKey
-import il.ac.technion.cs.softwaredesign.storage.datastructures.IdKey
 import il.ac.technion.cs.softwaredesign.storage.datastructures.SecureAVLTree
 import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES.TREE_CHANNELS_BY_ACTIVE_USERS_COUNT
 import il.ac.technion.cs.softwaredesign.storage.utils.DB_NAMES.TREE_CHANNELS_BY_USERS_COUNT
@@ -317,12 +317,12 @@ class ChannelManager
     private fun removeChannelFromChannelTrees(channelId: Long): CompletableFuture<Unit> {
         val membersCountFuture = getNumberOfMembersInChannel(channelId)
                 .thenApply{
-                    val key=CountIdKey(id = channelId, count = it)
+                    val key = CountIdKey(id = channelId, count = it)
                     channelsByUsersCountTree.delete(key) //TODO: remove future init after tree refactor
                 }
         val activeMembersCountFuture = getNumberOfActiveMembersInChannel(channelId)
                 .thenApply {
-                    val key=CountIdKey(id = channelId, count = it)
+                    val key = CountIdKey(id = channelId, count = it)
                     channelsByActiveUsersCountTree.delete(key) //TODO: remove future init after tree refactor
                 }
         return Future.allAsList(listOf(membersCountFuture,activeMembersCountFuture)).thenApply { Unit }
