@@ -1,23 +1,27 @@
-package il.ac.technion.cs.softwaredesign
+package il.ac.technion.cs.softwaredesign.tests
 
 import com.authzee.kotlinguice4.getInstance
 import com.google.inject.Guice
 import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.present
+import il.ac.technion.cs.softwaredesign.CourseApp
+import il.ac.technion.cs.softwaredesign.CourseAppInitializer
+import il.ac.technion.cs.softwaredesign.ListenerCallback
 import il.ac.technion.cs.softwaredesign.exceptions.*
 import il.ac.technion.cs.softwaredesign.messages.MediaType
 import il.ac.technion.cs.softwaredesign.messages.Message
 import il.ac.technion.cs.softwaredesign.messages.MessageFactory
-import il.ac.technion.cs.softwaredesign.tests.*
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Order
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.nio.charset.Charset
 import java.time.Duration.ofSeconds
 import java.util.concurrent.CompletableFuture
 import kotlin.random.Random
 
-class CourseAppTest {
+class RCourseAppTest {
     private val injector = Guice.createInjector(CourseAppTestModule())
 
     private val courseAppInitializer = injector.getInstance<CourseAppInitializer>()
@@ -336,7 +340,7 @@ class CourseAppTest {
         var differentToken: String = token
         while (differentToken == token) {   //creating a random token for consistency and validity
             differentToken = (1..strLen)
-                    .map { kotlin.random.Random.nextInt(0, charPool.size) }
+                    .map { Random.nextInt(0, charPool.size) }
                     .map(charPool::get)
                     .joinToString("")
         }
@@ -995,11 +999,11 @@ class CourseAppTest {
         val adminToken = courseApp.login("admin", "pass").get()
         courseApp.channelJoin(adminToken, "#greatChannel").get()
 
-        assertDoesNotThrow {
-            val res = courseApp.isUserInChannel(adminToken, "#greatChannel", "admin").joinException()
-            assertNotNull(res)
-            assertTrue(res!!)
-        }
+
+        val res = courseApp.isUserInChannel(adminToken, "#greatChannel", "admin").join()
+        assertNotNull(res)
+        assertTrue(res!!)
+
     }
 
     @Test
@@ -1051,11 +1055,11 @@ class CourseAppTest {
         courseApp.login("regUser", "pass").get()
         courseApp.channelJoin(adminToken, "#greatChannel").get()
 
-        assertDoesNotThrow {
-            val res = courseApp.isUserInChannel(adminToken, "#greatChannel", "regUser").joinException()
-            assertNotNull(res)
-            assertFalse(res!!)
-        }
+
+        val res = courseApp.isUserInChannel(adminToken, "#greatChannel", "regUser").join()
+        assertNotNull(res)
+        assertFalse(res!!)
+
     }
 
     @Test
@@ -1066,11 +1070,11 @@ class CourseAppTest {
         val regUserToken = courseApp.login("regUser", "pass").get()
         courseApp.channelJoin(regUserToken, "#greatChannel").get()
 
-        assertDoesNotThrow {
-            val res = courseApp.isUserInChannel(regUserToken, "#greatChannel", "admin").joinException()
-            assertNotNull(res)
-            assertTrue(res!!)
-        }
+
+        val res = courseApp.isUserInChannel(regUserToken, "#greatChannel", "admin").join()
+        assertNotNull(res)
+        assertTrue(res!!)
+
     }
 
     private fun makeChannel(channelName: String,
@@ -1475,8 +1479,8 @@ class CourseAppTest {
             CompletableFuture.completedFuture(Unit)
         }
 
-            courseApp.addListener(adminToken, callBack).get()
-            courseApp.addListener(otherToken, callBack).get()
+        courseApp.addListener(adminToken, callBack).get()
+        courseApp.addListener(otherToken, callBack).get()
 
 
     }
@@ -1488,10 +1492,7 @@ class CourseAppTest {
         val otherToken = courseApp.login("other", "pass").get()
 
         val sources = HashSet<String>()
-        val callBack: ListenerCallback = { source, _ ->
-            sources.add(source)
-            CompletableFuture.completedFuture(Unit)
-        }
+
         val message1 = messageFactory.create(MediaType.PICTURE, "Some Message No.1".toByteArray()).get()
         val message2 = messageFactory.create(MediaType.PICTURE, "Some Message No.2".toByteArray()).get()
         courseApp.channelJoin(adminToken, "#MyChannel")
@@ -1509,12 +1510,12 @@ class CourseAppTest {
         val adminToken = courseApp.login("admin", "pass").get()
         val otherToken = courseApp.login("other", "pass").get()
 
-        var source1 = HashSet<String>()
+        val source1 = HashSet<String>()
         val callBack1: ListenerCallback = { source, _ ->
             source1.add(source)
             CompletableFuture.completedFuture(Unit)
         }
-        var source2 = HashSet<String>()
+        val source2 = HashSet<String>()
         val callBack2: ListenerCallback = { source, _ ->
             source2.add(source)
             CompletableFuture.completedFuture(Unit)
@@ -1544,7 +1545,7 @@ class CourseAppTest {
     @Order(114)
     fun `unable to fetch messages that was after channel deleted and created again`() {
         val adminToken = courseApp.login("admin", "pass").get()
-        var source1 = HashSet<String>()
+        val source1 = HashSet<String>()
         val callback1: ListenerCallback = { source, _ ->
             source1.add(source)
             CompletableFuture.completedFuture(Unit)
@@ -1565,13 +1566,15 @@ class CourseAppTest {
     @Order(115)
     fun `getting all the pending messages when addListener is being invoked`() {
         val adminToken = courseApp.login("admin", "pass").get()
-        var messages = HashSet<String>()
+        val messages = HashSet<String>()
         val callback: ListenerCallback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
             CompletableFuture.completedFuture(Unit)
         }
+
         val otherUser1 = courseApp.login("other1", "pass").get()
         val otherUser2 = courseApp.login("other2", "pass").get()
+
         courseApp.channelJoin(adminToken, "#MyChannel").join()
         courseApp.channelJoin(otherUser2, "#MyChannel").join()
 
@@ -1605,12 +1608,12 @@ class CourseAppTest {
     @Order(116)
     fun `get private messages`() {
         val adminToken = courseApp.login("admin", "pass").get()
-        var messages = HashSet<String>()
+        val messages = HashSet<String>()
         val callback: ListenerCallback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
             CompletableFuture.completedFuture(Unit)
         }
-        val otherUser= courseApp.login("other", "pass").get()
+        val otherUser = courseApp.login("other", "pass").get()
         courseApp.addListener(adminToken, callback).join()
 
         val message = messageFactory.create(MediaType.PICTURE, "Some Message No. 1".toByteArray()).get()
@@ -1623,12 +1626,12 @@ class CourseAppTest {
     @Order(116)
     fun `get pending private messages`() {
         val adminToken = courseApp.login("admin", "pass").get()
-        var messages = HashSet<String>()
+        val messages = HashSet<String>()
         val callback: ListenerCallback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
             CompletableFuture.completedFuture(Unit)
         }
-        val otherUser= courseApp.login("other", "pass").get()
+        val otherUser = courseApp.login("other", "pass").get()
 
         val message = messageFactory.create(MediaType.PICTURE, "Some Message No. 1".toByteArray()).get()
         courseApp.privateSend(otherUser, "admin", message).join()
@@ -1643,15 +1646,15 @@ class CourseAppTest {
         //val adminToken = courseApp.login("admin", "pass").get()
         val amount = 100000
         val sources = HashSet<String>()
-        for(i in 1..amount){
-            if(i%10000 == 0)
+        for (i in 1..amount) {
+            if (i % 10000 == 0)
                 println(i)
             val callBack: ListenerCallback = { source, _ ->
                 sources.add(source)
                 CompletableFuture.completedFuture(Unit)
             }
             val otherToken = courseApp.login("user$i", "justPassword$i").get()
-            assertDoesNotThrow { courseApp.addListener(otherToken, callBack).join()}
+            assertDoesNotThrow { courseApp.addListener(otherToken, callBack).join() }
         }
     }
 
@@ -1661,15 +1664,15 @@ class CourseAppTest {
         val adminToken = courseApp.login("admin", "pass").get()
         val amount = 100000
         val sources = HashSet<String>()
-        for(i in 1..amount){
-            if(i%10000 == 0)
+        for (i in 1..amount) {
+            if (i % 10000 == 0)
                 println(i)
             val callBack: ListenerCallback = { source, _ ->
                 sources.add(source)
                 CompletableFuture.completedFuture(Unit)
             }
 
-            assertDoesNotThrow { courseApp.addListener(adminToken, callBack).join()}
+            assertDoesNotThrow { courseApp.addListener(adminToken, callBack).join() }
         }
     }
 
@@ -1680,21 +1683,21 @@ class CourseAppTest {
         val amount = 100000
         val sources = HashSet<String>()
         val functions = HashMap<Int, ListenerCallback>()
-        for(i in 1..amount){
-            if(i%10000 == 0)
+        for (i in 1..amount) {
+            if (i % 10000 == 0)
                 println("listener number: $i")
             val callBack: ListenerCallback = { source, _ ->
                 sources.add(source)
                 CompletableFuture.completedFuture(Unit)
             }
             functions[i] = callBack
-            assertDoesNotThrow { courseApp.addListener(adminToken, callBack).join()}
+            assertDoesNotThrow { courseApp.addListener(adminToken, callBack).join() }
         }
 
-        for(i in 1..amount){
-            if(i%10000 == 0)
+        for (i in 1..amount) {
+            if (i % 10000 == 0)
                 println("remove listener number: $i")
-            assertDoesNotThrow { courseApp.removeListener(adminToken, functions[i]!!).join()}
+            assertDoesNotThrow { courseApp.removeListener(adminToken, functions[i]!!).join() }
         }
 
     }
@@ -1703,12 +1706,12 @@ class CourseAppTest {
     @Order(120)
     fun `get broadcast messages 2 listeners of same user`() {
         val adminToken = courseApp.login("admin", "pass").get()
-        var messages = mutableListOf<String>()
+        val messages = mutableListOf<String>()
         var callback: ListenerCallback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
             CompletableFuture.completedFuture(Unit)
         }
-        val otherUser= courseApp.login("other", "pass").get()
+        courseApp.login("other", "pass").get()
         courseApp.addListener(adminToken, callback)
         callback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
@@ -1726,12 +1729,12 @@ class CourseAppTest {
     @Order(121)
     fun `get broadcast messages 2 listeners of different user `() {
         val adminToken = courseApp.login("admin", "pass").get()
-        var messages = mutableListOf<String>()
+        val messages = mutableListOf<String>()
         var callback: ListenerCallback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
             CompletableFuture.completedFuture(Unit)
         }
-        val otherUser= courseApp.login("other", "pass").get()
+        val otherUser = courseApp.login("other", "pass").get()
         courseApp.addListener(adminToken, callback)
         callback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
@@ -1751,8 +1754,8 @@ class CourseAppTest {
         val adminToken = courseApp.login("admin", "pass").get()
         val amount = 100000
         val sources = mutableListOf<String>()
-        for(i in 1..amount){
-            if(i%10000 == 0)
+        for (i in 1..amount) {
+            if (i % 10000 == 0)
                 println(i)
             val callBack: ListenerCallback = { source, _ ->
                 sources.add(source)
@@ -1773,8 +1776,8 @@ class CourseAppTest {
         val adminToken = courseApp.login("admin", "pass").get()
         val amount = 100000
         val sources = mutableListOf<String>()
-        for(i in 1..amount){
-            if(i%10000 == 0)
+        for (i in 1..amount) {
+            if (i % 10000 == 0)
                 println(i)
             val callBack: ListenerCallback = { source, _ ->
                 sources.add(source)
@@ -1793,7 +1796,7 @@ class CourseAppTest {
     @Order(124)
     fun `get pending broadcast messages as an admin that sent the message`() {
         val adminToken = courseApp.login("admin", "pass").get()
-        var messages = HashSet<String>()
+        val messages = HashSet<String>()
         val callback: ListenerCallback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
             CompletableFuture.completedFuture(Unit)
@@ -1811,10 +1814,10 @@ class CourseAppTest {
     @Order(125)
     fun `get pending broadcast messages, 1000 pending (all from broadcast)`() {
         val adminToken = courseApp.login("admin", "pass").get()
-        var messages = mutableListOf<String>()
+        val messages = mutableListOf<String>()
 
-        val otherUser= courseApp.login("other", "pass").get()
-        for (i in 1..1000 ) {
+        val otherUser = courseApp.login("other", "pass").get()
+        for (i in 1..1000) {
             val message = messageFactory.create(MediaType.PICTURE, "Some Message No. $i".toByteArray()).get()
             courseApp.broadcast(adminToken, message).join()
         }
@@ -1823,20 +1826,20 @@ class CourseAppTest {
             CompletableFuture.completedFuture(Unit)
         }
         courseApp.addListener(otherUser, callback).join()
-        assertEquals(1000, messages.size )
+        assertEquals(1000, messages.size)
     }
 
     @Test
     @Order(126)
     fun `get pending broadcast messages, 1000 pending, 2 users become listeners and get totally 2000 activation`() {
         val adminToken = courseApp.login("admin", "pass").get()
-        var messages = mutableListOf<String>()
+        val messages = mutableListOf<String>()
         val callback: ListenerCallback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
             CompletableFuture.completedFuture(Unit)
         }
-        val otherUser= courseApp.login("other", "pass").get()
-        for (i in 1..1000 ) {
+        val otherUser = courseApp.login("other", "pass").get()
+        for (i in 1..1000) {
             val message = messageFactory.create(MediaType.PICTURE, "Some Message No. $i".toByteArray()).get()
             courseApp.broadcast(adminToken, message).join()
         }
@@ -1848,24 +1851,24 @@ class CourseAppTest {
 
         courseApp.addListener(otherUser, callback).join()
         courseApp.addListener(adminToken, callback2).join()
-        assertEquals(2000, messages.size )
+        assertEquals(2000, messages.size)
     }
 
     @Test
     @Order(127)
     fun `user that created after broadcast dont have pending messages`() {
         val adminToken = courseApp.login("admin", "pass").get()
-        var messages = mutableListOf<String>()
+        val messages = mutableListOf<String>()
         val callback: ListenerCallback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
             CompletableFuture.completedFuture(Unit)
         }
 
-        for (i in 1..20 ) {
+        for (i in 1..20) {
             val message = messageFactory.create(MediaType.PICTURE, "Some Message No. $i".toByteArray()).get()
             courseApp.broadcast(adminToken, message).join()
         }
-        val otherUser= courseApp.login("other", "pass").get()
+        val otherUser = courseApp.login("other", "pass").get()
 
         val callback2: ListenerCallback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
@@ -1874,15 +1877,15 @@ class CourseAppTest {
 
         courseApp.addListener(otherUser, callback).join()
         courseApp.addListener(adminToken, callback2).join()
-        assertEquals(20, messages.size )
+        assertEquals(20, messages.size)
     }
 
     @Test
     @Order(128)
     fun `edge case, every user should get a pending massage only once`() { //Matan agreeded that this case is correct
         val adminToken = courseApp.login("admin", "pass").get()
-        val otherUser= courseApp.login("other", "pass").get()
-        var messages = mutableListOf<String>()
+        val otherUser = courseApp.login("other", "pass").get()
+        val messages = mutableListOf<String>()
         val callback: ListenerCallback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
             CompletableFuture.completedFuture(Unit)
@@ -1901,10 +1904,10 @@ class CourseAppTest {
 
     @Test
     @Order(129)
-    fun `channelSend activate lambda of a listener in the channel`(){
+    fun `channelSend activate lambda of a listener in the channel`() {
         val adminToken = courseApp.login("admin", "pass").get()
         courseApp.channelJoin(adminToken, "#channel___").join()
-        var messages = mutableListOf<String>()
+        val messages = mutableListOf<String>()
         val callback: ListenerCallback = { _, message ->
             messages.add(message.contents.toString(Charset.defaultCharset()))
             CompletableFuture.completedFuture(Unit)
@@ -1918,15 +1921,15 @@ class CourseAppTest {
 
     @Test
     @Order(130)
-    fun `channelSend activate lambda of a 100000 listeners in the channel`(){
+    fun `channelSend activate lambda of a 100000 listeners in the channel`() {
         val adminToken = courseApp.login("admin", "pass").get()
         courseApp.channelJoin(adminToken, "#channel___")
         val amount = 100000
-        var messages = mutableListOf<String>()
-        for(i in 1..amount){
-            if (i%10000 == 0)
+        val messages = mutableListOf<String>()
+        for (i in 1..amount) {
+            if (i % 10000 == 0)
                 println(i)
-            val otherUser= courseApp.login("other$i", "pass$i").get()
+            val otherUser = courseApp.login("other$i", "pass$i").get()
             courseApp.channelJoin(otherUser, "#channel___").join()
             val callback: ListenerCallback = { _, message ->
                 messages.add(message.contents.toString(Charset.defaultCharset()))
@@ -1943,17 +1946,17 @@ class CourseAppTest {
 
     @Test
     @Order(131)
-    fun `channelSend activate lambda of a 50000 listeners in the channel when only half of members are listeners`(){
+    fun `channelSend activate lambda of a 50000 listeners in the channel when only half of members are listeners`() {
         val adminToken = courseApp.login("admin", "pass").get()
         courseApp.channelJoin(adminToken, "#channel___").join()
         val amount = 100000
-        var messages = mutableListOf<String>()
-        for(i in 1..amount){
-            if (i%10000 == 0)
+        val messages = mutableListOf<String>()
+        for (i in 1..amount) {
+            if (i % 10000 == 0)
                 println(i)
-            val otherUser= courseApp.login("other$i", "pass$i").get()
+            val otherUser = courseApp.login("other$i", "pass$i").get()
             courseApp.channelJoin(otherUser, "#channel___").join()
-            if(i%2 != 0) {
+            if (i % 2 != 0) {
                 val callback: ListenerCallback = { _, message ->
                     messages.add(message.contents.toString(Charset.defaultCharset()))
                     CompletableFuture.completedFuture(Unit)
@@ -1965,7 +1968,7 @@ class CourseAppTest {
         val message = messageFactory.create(MediaType.PICTURE, "Some Message No. 1".toByteArray()).get()
         courseApp.channelSend(adminToken, "#channel___", message).join()
 
-        assertEquals(amount/2, messages.size)
+        assertEquals(amount / 2, messages.size)
     }
 
 

@@ -8,11 +8,11 @@ import il.ac.technion.cs.softwaredesign.storage.datastructures.IdKey
 import il.ac.technion.cs.softwaredesign.storage.datastructures.SecureAVLTree
 import il.ac.technion.cs.softwaredesign.storage.messages.IMessageStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
+import io.github.vjames19.futures.jdk8.Future
+import io.github.vjames19.futures.jdk8.ImmediateFuture
 import java.time.LocalDateTime
 import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
-import io.github.vjames19.futures.jdk8.Future
-import io.github.vjames19.futures.jdk8.ImmediateFuture
 
 class MessageManager @Inject constructor(
         private val statisticsManager: IStatisticsManager,
@@ -66,7 +66,9 @@ class MessageManager @Inject constructor(
 
     override fun getMessageMediaType(msgId: Long): CompletableFuture<Long> {
         return messageStorage.getLongById(msgId, MANAGERS_CONSTS.MESSAGE_MEDIA_TYPE)
-                .thenApply { it ?: throw IllegalArgumentException("message id does not exist") }
+                .thenApply {
+                    it ?: throw IllegalArgumentException("message id does not exist")
+                }
     }
 
     override fun getMessageContent(msgId: Long): CompletableFuture<ByteArray> {

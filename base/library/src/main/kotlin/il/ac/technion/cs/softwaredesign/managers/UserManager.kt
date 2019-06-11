@@ -1,12 +1,12 @@
 package il.ac.technion.cs.softwaredesign.managers
 
 
-import il.ac.technion.cs.softwaredesign.storage.api.IUserManager.LoginStatus
-import il.ac.technion.cs.softwaredesign.storage.api.IUserManager.PrivilegeLevel
 import il.ac.technion.cs.softwaredesign.internals.ISequenceGenerator
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.api.IStatisticsManager
 import il.ac.technion.cs.softwaredesign.storage.api.IUserManager
+import il.ac.technion.cs.softwaredesign.storage.api.IUserManager.LoginStatus
+import il.ac.technion.cs.softwaredesign.storage.api.IUserManager.PrivilegeLevel
 import il.ac.technion.cs.softwaredesign.storage.datastructures.CountIdKey
 import il.ac.technion.cs.softwaredesign.storage.datastructures.IdKey
 import il.ac.technion.cs.softwaredesign.storage.datastructures.SecureAVLTree
@@ -136,8 +136,8 @@ class UserManager
     override fun getChannelListOfUser(userId: Long): CompletableFuture<List<Long>> {
         return isUserIdExists(userId).thenApply {
             if (!it) throw IllegalArgumentException("User id does not exist")
-            else SecureAVLTree(usersMessagesTreesStorage, defaultIdKey, userId)
-                        .keys().map { it.getId() }.toList()
+            else SecureAVLTree(usersByChannelsCountStorage, defaultIdKey, userId)
+                    .keys().map { idKey -> idKey.getId() }.toList()
         }
     }
 
@@ -158,7 +158,7 @@ class UserManager
 //            updateUserNodeFuture(userId, oldCount = currentSize - 1L, newCount = currentSize)
 //        }
 //    }
-
+//
 //    override fun removeChannelFromUser(userId: Long, channelId: Long): CompletableFuture<Unit> {
 //        return getChannelListOfUser(userId)
 //                .thenApply { ArrayList<Long>(it) }
@@ -178,7 +178,7 @@ class UserManager
         return isUserIdExists(userId).thenCompose {
             if (!it) throw IllegalArgumentException("User id does not exist")
             else {
-                val userChannelTree = SecureAVLTree(usersMessagesTreesStorage, defaultIdKey, userId)
+                val userChannelTree = SecureAVLTree(usersByChannelsCountStorage, defaultIdKey, userId)
                 if (userChannelTree.contains(IdKey(channelId))) throw IllegalAccessException("channel id already exists in users list")
                 userChannelTree.put(IdKey(channelId))
                 userStorage.getPropertyLongByUserId(userId, MANAGERS_CONSTS.SIZE_PROPERTY)
@@ -195,7 +195,7 @@ class UserManager
         return isUserIdExists(userId).thenCompose {
             if (!it) throw IllegalArgumentException("User id does not exist")
             else {
-                val userChannelTree = SecureAVLTree(usersMessagesTreesStorage, defaultIdKey, userId)
+                val userChannelTree = SecureAVLTree(usersByChannelsCountStorage, defaultIdKey, userId)
                 if (!userChannelTree.contains(IdKey(channelId))) throw IllegalAccessException("channel id does not exists in users list")
                 userChannelTree.delete(IdKey(channelId))
                 userStorage.getPropertyLongByUserId(userId, MANAGERS_CONSTS.SIZE_PROPERTY)

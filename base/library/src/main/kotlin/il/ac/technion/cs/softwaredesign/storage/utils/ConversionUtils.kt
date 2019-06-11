@@ -11,7 +11,7 @@ object ConversionUtils {
     fun bytesToLong(bytes: ByteArray): Long = Longs.fromByteArray(bytes)
 
     fun createPropertyKey(id: Long, property: String): ByteArray {
-        val channelIdByteArray = ConversionUtils.longToBytes(id)
+        val channelIdByteArray = longToBytes(id)
         val keySuffixByteArray = "${MANAGERS_CONSTS.DELIMITER}$property".toByteArray()
         return channelIdByteArray + keySuffixByteArray
     }

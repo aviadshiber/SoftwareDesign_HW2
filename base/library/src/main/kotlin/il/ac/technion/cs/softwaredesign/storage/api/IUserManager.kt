@@ -1,6 +1,5 @@
 package il.ac.technion.cs.softwaredesign.storage.api
 
-import java.lang.IllegalArgumentException
 import java.util.concurrent.CompletableFuture
 
 
@@ -72,7 +71,7 @@ interface IUserManager {
      * Get the last message id the user wes read
      * @param userId user id
      * @throws IllegalArgumentException if user id does not exist in the system
-     * @return Long - the msg id
+     * @return Long - the msg id, -1 is returned if there was no messages that the user read
      */
     fun getUserLastReadMsgId(userId: Long) : CompletableFuture<Long>
 

@@ -36,7 +36,7 @@ class CourseAppImpl
     private fun listen(userId: Long, callback: ListenerCallback) {
         val userListener = userListeners[userId]
         if (userListener == null) {
-            userListeners[userId] = UserListener(userManager,messageManager).listen(callback)
+            userListeners[userId] = UserListener(userManager, messageManager).listen(callback)
         } else {
             userListener.listen(callback)
         }
@@ -50,7 +50,7 @@ class CourseAppImpl
     private fun unlisten(userId: Long, callback: ListenerCallback) {
         val userListener = userListeners[userId]
         if (userListener == null) {
-            userListeners[userId] = UserListener(userManager,messageManager).unlisten(callback)
+            userListeners[userId] = UserListener(userManager, messageManager).unlisten(callback)
         } else {
             userListener.unlisten(callback)
         }
@@ -192,49 +192,55 @@ class CourseAppImpl
         return validateTokenFuture(token)
                 .thenCompose { tokenManager.getUserIdByToken(token).thenApply { it!! } }
                 .thenCompose { userId ->
-
                     if (!isUserListening(userId)) {
                         listen(userId, callback)
                         val callbacks = userListeners[userId]!!
-                        val broadcastIds = messageManager.getAllBroadcastMessageIds().sorted()
-                        if (broadcastIds.isEmpty()) ImmediateFuture { Unit }
-                        else
-                            broadcastIds.map { broadcastId ->
-                                buildMessage(broadcastId)
-                                        .thenCompose { (source, message) ->
-                                            readBroadcastMessageByListener(userId, message, callbacks)
-                                        }
-                            }
-                                    .reduce { acc, completableFuture ->
-                                        acc.thenCompose { completableFuture }
-                                    }
-                                    .thenCompose {
-                                        userManager.getAllChannelAndPrivateUserMessages(userId)
-                                                .thenCompose { messagesIds ->
-                                                    if (messagesIds.isEmpty()) ImmediateFuture { Unit }
-                                                    else
-                                                        messagesIds.map { messageId ->
-                                                            buildMessage(messageId)
-                                                                    .thenCompose { (source, message) ->
-                                                                        callbacks.notifyOnMessageArrive(userId, source, message)
-                                                                    }
-                                                        }
-                                                                .reduce { acc,
-                                                                          completableFuture ->
-                                                                    acc.thenCompose { completableFuture }
-                                                                }
-
-
-                                                }
-                                    }
+                        readAllUserMessages(userId, callbacks)
                     } else {
                         ImmediateFuture { listen(userId, callback) }
                     }
-
-
                 }
 
     }
+
+    private fun readAllUserMessages(userId: Long, callbacks: UserListener): CompletableFuture<Unit> {
+        val broadcastIds = messageManager.getAllBroadcastMessageIds().sorted()
+        return readAllBroadcastMessagesFuture(broadcastIds, userId, callbacks)
+                .thenCompose { readAllChannelAndPrivateMessagesFuture(callbacks, userId) }
+    }
+
+    private fun readAllBroadcastMessagesFuture(broadcastIds: List<Long>, userId: Long, callbacks: UserListener): CompletableFuture<Unit> {
+        if (broadcastIds.isEmpty()) return ImmediateFuture { Unit }
+        return broadcastIds
+                .map { buildMessage(it) }
+                .map { srcMsgFuture ->
+                    srcMsgFuture.thenCompose { (_, message) ->
+                        readBroadcastMessageByListener(userId, message, callbacks)
+                    }
+                }.reduce { acc, completableFuture ->
+                    acc.thenCompose { completableFuture }
+                }
+    }
+
+    private fun readAllChannelAndPrivateMessagesFuture(callbacks: UserListener, userId: Long): CompletableFuture<Unit> {
+        val messagesIds = userManager.getAllChannelAndPrivateUserMessages(userId).get()
+        return if (messagesIds.isEmpty()) ImmediateFuture { Unit }
+        else {
+            messagesIds
+                    .map { buildMessage(it) }
+                    .map { sourceMessageFuture ->
+                        sourceMessageFuture.thenCompose { (source, message) ->
+                            callbacks.notifyOnMessageArrive(userId, source, message)
+                        }
+                    }.reduce { acc,
+                               completableFuture ->
+                        acc.thenCompose { completableFuture }
+                    }
+        }
+
+
+    }
+
 
     override fun removeListener(token: String, callback: ListenerCallback): CompletableFuture<Unit> {
         return validateTokenFuture(token)
@@ -250,7 +256,7 @@ class CourseAppImpl
                 .thenCompose { userId -> channelManager.getChannelIdByName(channel).thenApply { Pair(userId, it!!) } }
                 .thenCompose { (userId, channelId) -> validateMembershipInChannelFuture(userId, channelId).thenApply { Pair(userId, channelId) } }
                 .thenCompose { (userId, channelId) -> userManager.getUsernameById(userId).thenApply { Triple(userId, channelId, it) } }
-                .thenCompose { (userId, channelId, userName) ->
+                .thenCompose { (_, channelId, userName) ->
                     val source = "$channel@$userName"
                     messageManager.addMessage(message.id, message.media.ordinal.toLong()
                             , message.contents, message.created, IMessageManager.MessageType.CHANNEL, source
@@ -286,26 +292,31 @@ class CourseAppImpl
             userListeners.map { (userId, listener) ->
                 readBroadcastMessageByListener(userId, message, listener)
             }.reduce { acc, completableFuture -> acc.thenCompose { completableFuture } }
-        else
-            ImmediateFuture { Unit }
+        else ImmediateFuture { Unit }
     }
 
     private fun readBroadcastMessageByListener(userId: Long, message: Message, listener: UserListener): CompletableFuture<Unit> {
-        return if (isUserBeenCreatedBeforeMessage(userId, message)) {
-            userManager.getUserLastReadMsgId(userId).thenCompose {
-                if (it < message.id)
-                    listener.notifyOnMessageArrive(userId, "BROADCAST", message)
-                            .thenCompose { messageManager.decreaseMessageCounterBy(message.id) }
-                else
-                    ImmediateFuture { Unit }
+        return isMessageNewToUser(userId, message).thenCompose { messageNewToUser ->
+            if (messageNewToUser) { //user have not read the message
+                listener.notifyOnMessageArrive(userId, "BROADCAST", message)
+                        .thenCompose { messageManager.decreaseMessageCounterBy(message.id) }
+            } else {
+                ImmediateFuture { Unit }
             }
-        } else {
-            ImmediateFuture { Unit }
         }
+
     }
 
-    private fun isUserBeenCreatedBeforeMessage(userId: Long, message: Message) =
-            userId < message.id
+
+    private fun isMessageNewToUser(userId: Long, message: Message): CompletableFuture<Boolean> {
+        return if (isUserBeenCreatedBeforeMessage(userId, message))
+            userManager.getUserLastReadMsgId(userId).thenApply { lastMsgId ->
+                lastMsgId < message.id
+            }
+        else ImmediateFuture { false }
+    }
+
+    private fun isUserBeenCreatedBeforeMessage(userId: Long, message: Message) = userId < message.id
 
     override fun privateSend(token: String, user: String, message: Message): CompletableFuture<Unit> {
         return validateTokenFuture(token)
@@ -365,7 +376,7 @@ class CourseAppImpl
         return messageManager.getMessageMediaType(msgId)
                 .thenApply {
                     val message = MessageImpl()
-                    message.id=msgId
+                    message.id = msgId
                     message.media = MediaType.values()[it.toInt()]
                     message
                 }.thenCompose { message ->
@@ -415,10 +426,11 @@ class CourseAppImpl
         return Future.allAsList(listOf(updateUserStatusFuture, updateChannelStatusFuture))
     }
 
-    private fun validateTokenFuture(token: String) :CompletableFuture<Unit> {
+    private fun validateTokenFuture(token: String): CompletableFuture<Unit> {
         return tokenManager.isTokenValid(token)
-                .thenApply { if (!it)
-                    throw InvalidTokenException()
+                .thenApply {
+                    if (!it)
+                        throw InvalidTokenException()
                 }
     }
 
