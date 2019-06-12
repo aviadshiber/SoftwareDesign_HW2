@@ -27,6 +27,7 @@ class CourseAppInitializerImpl
 
     private fun initStatistics() {
         statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_USERS.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
+        statisticsStorage.write(STATISTICS_KEYS.USER_MESSAGE_ID.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
         statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
         statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_CHANNELS.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()
         statisticsStorage.write(STATISTICS_KEYS.NUMBER_OF_CHANNEL_MESSAGES.toByteArray(), Longs.toByteArray(STATISTICS_KEYS.INIT_INDEX_VAL)).get()

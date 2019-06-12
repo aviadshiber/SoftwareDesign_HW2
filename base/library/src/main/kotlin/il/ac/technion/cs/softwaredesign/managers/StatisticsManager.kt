@@ -7,6 +7,7 @@ import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS.NUMBER_OF_
 import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS.NUMBER_OF_CHANNEL_MESSAGES
 import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS
 import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS.NUMBER_OF_PENDING_MESSAGES
+import il.ac.technion.cs.softwaredesign.storage.utils.STATISTICS_KEYS.NUMBER_OF_USERS
 import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -36,6 +37,10 @@ class StatisticsManager @Inject constructor(private val statisticsStorage: IStat
     override fun getNumberOfChannelMessages(): CompletableFuture<Long> {
         return statisticsStorage.getLongValue(STATISTICS_KEYS.NUMBER_OF_CHANNEL_MESSAGES)
                 .thenApply { it ?: throw IllegalAccessException("should not get here, NUMBER_OF_CHANNEL_MESSAGES is a valid key")}
+    }
+
+    override fun increaseNumberOfUsersBy(count: Int): CompletableFuture<Unit> {
+        return updateKeyBy(NUMBER_OF_USERS, count)
     }
 
     override fun increaseLoggedInUsersBy(count: Int): CompletableFuture<Unit> {
@@ -74,6 +79,7 @@ class StatisticsManager @Inject constructor(private val statisticsStorage: IStat
         val oldValue =
                 when (key) {
                     NUMBER_OF_LOGGED_IN_USERS -> getLoggedInUsers()
+                    NUMBER_OF_USERS -> getTotalUsers()
                     NUMBER_OF_CHANNELS -> getNumberOfChannels()
                     NUMBER_OF_CHANNEL_MESSAGES -> getNumberOfChannelMessages()
                     NUMBER_OF_PENDING_MESSAGES -> getNumberOfPendingMessages()

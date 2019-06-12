@@ -23,6 +23,7 @@ class UserManagerTest {
     private fun initStatistics() {
         val statisticsStorage = injector.getInstance<IStatisticsStorage>()
         statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_USERS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
+        statisticsStorage.setLongValue(STATISTICS_KEYS.USER_MESSAGE_ID, STATISTICS_KEYS.INIT_INDEX_VAL).get()
         statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_LOGGED_IN_USERS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
         statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_CHANNELS, STATISTICS_KEYS.INIT_INDEX_VAL).get()
         statisticsStorage.setLongValue(STATISTICS_KEYS.NUMBER_OF_CHANNEL_MESSAGES, STATISTICS_KEYS.INIT_INDEX_VAL).get()

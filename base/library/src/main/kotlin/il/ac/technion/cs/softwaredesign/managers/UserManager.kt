@@ -47,7 +47,8 @@ class UserManager
                     if (userId != null) throw IllegalArgumentException("user already exist")
                     userIdGenerator.next()
                 }
-                .thenCompose { userId->userStorage.setUserIdToUsername(username, userId); ImmediateFuture{userId} }
+                .thenCompose { userId->userStorage.setUserIdToUsername(username, userId).thenApply { userId } }
+                .thenCompose { userId->statisticsManager.increaseNumberOfUsersBy().thenApply { userId } }
                 .thenCompose { userId->propertiesSettersFuture(userId,username,password,status,privilege) }
                 .thenCompose { userId->initChannelListFuture(userId) }
                 .thenCompose { userId->

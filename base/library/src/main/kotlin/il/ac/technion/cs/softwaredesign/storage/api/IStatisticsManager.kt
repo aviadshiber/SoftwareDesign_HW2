@@ -38,6 +38,13 @@ interface IStatisticsManager {
     fun getNumberOfChannelMessages() : CompletableFuture<Long>
 
     /**
+     * Increase number of users in the system by [count]
+     * @param count Int, increase value by count
+     * @return Long, the updated value
+     */
+    fun increaseNumberOfUsersBy(count: Int = 1): CompletableFuture<Unit>
+
+    /**
      * Increase number of logged in users in the system by [count]
      * @param count Int, increase value by count
      * @return Long, the updated value

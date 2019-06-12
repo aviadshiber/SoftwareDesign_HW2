@@ -68,6 +68,7 @@ object DB_NAMES {
 
 
 object STATISTICS_KEYS{
+    internal const val USER_MESSAGE_ID="userMessageId"
     internal const val NUMBER_OF_USERS="numberOfUsers"
     internal const val NUMBER_OF_LOGGED_IN_USERS="numberOfLoggenInUsers"
     internal const val NUMBER_OF_CHANNELS="numberOfChannels"
