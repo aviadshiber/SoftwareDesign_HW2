@@ -1388,7 +1388,7 @@ class CourseAppTest{
 
             courseApp.addListener(other) { _, _ ->
                 CompletableFuture.completedFuture(Unit)
-            }
+            }.join()
 
 
             val before = LocalDateTime.now()
@@ -1401,9 +1401,12 @@ class CourseAppTest{
                 CompletableFuture.completedFuture(Unit)
             }.join()
 
+            val res = courseApp.fetchMessage(admin, m.id).join().second
+            assert(res!!.received!! > before)
+            assert(res!!.received!! < after)
 
-            assert(receivedm!!.received!! > before)
-            assert(receivedm!!.received!! < after)
+//            assert(receivedm!!.received!! > before)
+//            assert(receivedm!!.received!! < after)
         }
 
 
