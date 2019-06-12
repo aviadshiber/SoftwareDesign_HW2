@@ -250,6 +250,7 @@ class ChannelManager
     }
 
     override fun getTop10ChannelsByMsgsCount(): CompletableFuture<List<String>> {
+
         return getTop10FromTree(TREE_CHANNELS_MSG_COUNT)
     }
 
@@ -350,7 +351,7 @@ class ChannelManager
 
     private fun getTop10FromTree(treeName: String): CompletableFuture<List<String>> {
         val tree= getTreeByName(treeName)
-        return getNumberOfChannels().thenCompose { buildTop10FutureListFromTree(tree,it) }
+        return buildTop10FutureListFromTree(tree, tree.size())
     }
 
     private fun buildTop10FutureListFromTree(tree: SecureAVLTree<CountIdKey>, numberOfChannels: Long): CompletableFuture<List<String>> {
@@ -415,4 +416,5 @@ class ChannelManager
             else -> throw IllegalAccessException("tree does not exist, should not get here")
         }
     }
+
 }
