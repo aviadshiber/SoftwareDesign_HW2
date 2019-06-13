@@ -5,7 +5,7 @@ import java.util.concurrent.CompletableFuture
 
 interface IMessageStorage {
     fun getLongById(messageId: Long, property: String) : CompletableFuture<Long?>
-    fun setLongToId(messageId: Long, property: String, mediaType: Long): CompletableFuture<Unit>
+    fun setLongToId(messageId: Long, property: String, number: Long): CompletableFuture<Unit>
 
     fun getByteArrayById(messageId: Long, property: String) : CompletableFuture<ByteArray?>
     fun setByteArrayToId(messageId: Long, property: String, content: ByteArray): CompletableFuture<Unit>

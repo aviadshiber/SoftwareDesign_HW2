@@ -252,7 +252,9 @@ class CourseAppImpl
         return validateTokenFuture(token)
                 .thenCompose { tokenManager.getUserIdByToken(token).thenApply { it!! } }
                 .thenCompose { userId -> validateUserIsAdminFuture(userId) }
-                .thenCompose { userManager.getTotalUsers().thenApply { it } }
+                .thenCompose { userManager.getTotalUsers()
+                        .thenApply { it }
+                }
                 .thenCompose { numOfUsers ->
                     messageManager.addMessage(message.id, message.media.ordinal.toLong()
                             , message.contents, message.created, IMessageManager.MessageType.BROADCAST

@@ -36,7 +36,7 @@ class MessageManager @Inject constructor(
                             startCounter: Long?, channelId: Long?, destUserId: Long?): CompletableFuture<Unit> {
         return isMessageIdExists(id).thenCompose {
             if (it) throw IllegalArgumentException("message id already exists")
-            val mediaTypeSetter = messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_MEDIA_TYPE, mediaType = mediaType)
+            val mediaTypeSetter = messageStorage.setLongToId(id, MANAGERS_CONSTS.MESSAGE_MEDIA_TYPE, mediaType)
             val contentSetter = messageStorage.setByteArrayToId(id, MANAGERS_CONSTS.MESSAGE_CONTENTS, content)
             val createsSetter = messageStorage.setTimeToId(id, MANAGERS_CONSTS.MESSAGE_CREATED_TIME, created)
             // no need to set received time because it is null
@@ -126,8 +126,8 @@ class MessageManager @Inject constructor(
                     if (it != null) ImmediateFuture{Unit}
                     else messageStorage.setTimeToId(msgId, MANAGERS_CONSTS.MESSAGE_RECEIVED_TIME, received)
                             .thenCompose { getMessageType(msgId) }
-                            .thenCompose {
-                                if (it == IMessageManager.MessageType.PRIVATE)
+                            .thenCompose {messageType->
+                                if (messageType == IMessageManager.MessageType.PRIVATE)
                                     statisticsManager.decreaseNumberOfPendingMsgsBy()
                                 else ImmediateFuture { Unit }
                             }
@@ -135,16 +135,14 @@ class MessageManager @Inject constructor(
     }
 
     override fun decreaseMessageCounterBy(msgId: Long, count: Long): CompletableFuture<Unit> {
-        return getMessageCounter(msgId).thenCompose {
-            messageStorage.setLongToId(msgId, MANAGERS_CONSTS.MESSAGE_COUNTER, it - count)
-        }.thenCompose {
-            getMessageCounter(msgId)
+        return getMessageCounter(msgId).thenCompose {messageCounter->
+            val newCounter=messageCounter - count
+            messageStorage.setLongToId(msgId, MANAGERS_CONSTS.MESSAGE_COUNTER, newCounter).thenApply { newCounter }
         }.thenCompose {
             if (it == 0L) {
                 broadcastMessagesTree.delete(IdKey(msgId))
                 statisticsManager.decreaseNumberOfPendingMsgsBy()
-            }
-            else ImmediateFuture { Unit }
+            } else ImmediateFuture { Unit }
         }
     }
 

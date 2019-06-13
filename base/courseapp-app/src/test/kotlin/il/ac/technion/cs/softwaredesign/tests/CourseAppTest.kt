@@ -1421,9 +1421,10 @@ class CourseAppTest{
 
             var receivedm: Message? = null
 
-            courseApp.addListener(other) { _, _ ->
+            courseApp.addListener(other2) { _, received ->
+                //receivedm = received
                 CompletableFuture.completedFuture(Unit)
-            }
+            }.join()
 
 
             val before = LocalDateTime.now()
@@ -1445,28 +1446,34 @@ class CourseAppTest{
         @Test
         fun `broadcast message received by all users`() {
             val listener = mockk<ListenerCallback>()
+            val listener2 = mockk<ListenerCallback>()
 
             every { listener(any(), any()) } returns CompletableFuture.completedFuture(Unit)
+            every { listener2(any(), any()) } returns CompletableFuture.completedFuture(Unit)
 
             val admin = courseApp.login("who", "ha").join()
             val other = courseApp.login("user2", "user2").join()
 
             courseApp.addListener(admin, listener).join()
-            courseApp.addListener(other, listener).join()
+            courseApp.addListener(other, listener2).join()
 
             val m = messageFactory.create(MediaType.TEXT, "1 2".toByteArray()).join()
             courseApp.broadcast(admin, m).join()
 
 
-            verify(exactly = 2) {
+            verify(exactly = 1) {
                 listener(match { it == "BROADCAST" },
+                        match { it.contents contentEquals "1 2".toByteArray() })
+            }
+            verify(exactly = 1) {
+                listener2(match { it == "BROADCAST" },
                         match { it.contents contentEquals "1 2".toByteArray() })
             }
             confirmVerified()
 
 
-            Assertions.assertEquals(courseAppStatistics.pendingMessages().join(), 0)
-            Assertions.assertEquals(courseAppStatistics.channelMessages().join(), 0)
+            Assertions.assertEquals( 0,courseAppStatistics.channelMessages().join())
+            Assertions.assertEquals( 0,courseAppStatistics.pendingMessages().join())
         }
 
 
