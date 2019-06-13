@@ -20,6 +20,7 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.util.concurrent.CompletableFuture
 
+@Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 class CourseAppTest{
     private val injector = Guice.createInjector(CourseAppTestModule())
@@ -1405,43 +1406,7 @@ class CourseAppTest{
             assert(res!!.received!! > before)
             assert(res!!.received!! < after)
 
-//            assert(receivedm!!.received!! > before)
-//            assert(receivedm!!.received!! < after)
         }
-
-
-        @Test
-        fun `message read time is set to first reader - broadcast`() {
-            val admin = courseApp.login("who", "ha").join()
-            val other = courseApp.login("user2", "user2").join()
-            val other2 = courseApp.login("user3", "user3").join()
-
-
-            val m = messageFactory.create(MediaType.TEXT, "1 2".toByteArray()).join()
-
-            var receivedm: Message? = null
-
-            courseApp.addListener(other2) { _, received ->
-                //receivedm = received
-                CompletableFuture.completedFuture(Unit)
-            }.join()
-
-
-            val before = LocalDateTime.now()
-            Thread.sleep(1000)
-            courseApp.broadcast(admin, m).join()
-            Thread.sleep(1000)
-            val after = LocalDateTime.now()
-            courseApp.addListener(other2) { _, received ->
-                receivedm = received
-                CompletableFuture.completedFuture(Unit)
-            }.join()
-
-            // this check is not valid
-//            assert(receivedm!!.received!! > before)
-//            assert(receivedm!!.received!! < after)
-        }
-
 
         @Test
         fun `broadcast message received by all users`() {

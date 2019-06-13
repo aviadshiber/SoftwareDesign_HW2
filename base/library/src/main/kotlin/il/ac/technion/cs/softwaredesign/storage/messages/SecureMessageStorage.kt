@@ -4,7 +4,6 @@ import il.ac.technion.cs.softwaredesign.managers.MessageDetailsStorage
 import il.ac.technion.cs.softwaredesign.storage.SecureStorage
 import il.ac.technion.cs.softwaredesign.storage.utils.ConversionUtils
 import il.ac.technion.cs.softwaredesign.storage.utils.ConversionUtils.createPropertyKey
-import il.ac.technion.cs.softwaredesign.storage.utils.MANAGERS_CONSTS
 import java.time.LocalDateTime
 import java.util.concurrent.CompletableFuture
 import javax.inject.Inject
@@ -16,9 +15,9 @@ class SecureMessageStorage @Inject constructor(@MessageDetailsStorage private va
         return value.thenApply { if (it == null) null else ConversionUtils.bytesToLong(it) }
     }
 
-    override fun setLongToId(messageId: Long, property: String, mediaType: Long): CompletableFuture<Unit> {
+    override fun setLongToId(messageId: Long, property: String, number: Long): CompletableFuture<Unit> {
         val key = createPropertyKey(messageId, property)
-        return messageDetailsStorage.write(key, ConversionUtils.longToBytes(mediaType))
+        return messageDetailsStorage.write(key, ConversionUtils.longToBytes(number))
     }
 
     override fun getByteArrayById(messageId: Long, property: String): CompletableFuture<ByteArray?> {

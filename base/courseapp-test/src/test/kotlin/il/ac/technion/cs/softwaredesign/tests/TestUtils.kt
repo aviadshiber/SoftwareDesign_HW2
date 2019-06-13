@@ -50,11 +50,6 @@ fun readCsv(fileName: String): List<User> {
     return userData
 }
 
-fun getPathOfFile(fileName: String): String {
-    return "C:\\Users\\t-royitz\\OneDrive - Microsoft\\Studies\\Semester 6\\Software Design - 236700\\SoftwareDesign_HW2\\base\\courseapp-test\\src\\test\\resources\\large_test.csv"
-    //return object {}.javaClass.classLoader.getResource(fileName).path
-}
-
 
 fun buildUserIdToTokenMap(courseApp: CourseApp, fileName: String): Map<String, String> {
     val userData = readCsv(fileName)
