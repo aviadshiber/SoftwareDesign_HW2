@@ -74,4 +74,4 @@ for one place that broke us because it took too much time from us to redsign it 
 
 ### Feedback
 - As can be noticed by the FAQ there were lots of holes in this assignment and many place for personal interpetation , we hope this can be miminzed in the next assignment
-- The staff was very helpful and responsive , that helped a lot!
+- The staff was very helpfull and responsive , that helped a lot!
