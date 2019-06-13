@@ -56,7 +56,7 @@ task<Zip>("submission") {
     archiveBaseName.set(taskname)
     from(project.rootDir.parentFile) {
         include("$base/**")
-        exclude("$base/**/*.iml", "$base/*/build", "$base/**/.gradle", "$base/**/.idea", "$base/*/out",
+        exclude("*/build", "$base/**/*.iml", "$base/*/build", "$base/**/.gradle", "$base/**/.idea", "$base/*/out",
                 "$base/**/.git", "$base/**/.DS_Store")
         exclude("$base/$taskname.zip")
     }
