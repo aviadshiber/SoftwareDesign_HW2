@@ -36,7 +36,7 @@ fun readCsv(fileName: String): List<User> {
     while (line != null) {
 
         val tokens = line.split(',')
-        if (tokens.size > 0) {
+        if (tokens.isNotEmpty()) {
             val user = User(
                     id = tokens[CsvIdx.USER_NAME_IDX.idx],
                     pass = tokens[CsvIdx.PASS_IDX.idx],

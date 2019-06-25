@@ -1403,8 +1403,8 @@ class CourseAppTest{
             }.join()
 
             val res = courseApp.fetchMessage(admin, m.id).join().second
-            assert(res!!.received!! > before)
-            assert(res!!.received!! < after)
+            assert(res.received!! > before)
+            assert(res.received!! < after)
 
         }
 
