@@ -33,9 +33,9 @@ tasks.test{
 
         //html.destination = File("path\\to\\dir\\destination")
     }
-/*
+
     testLogging{
-        val csvFile=File("\\path\\to\\csv")
+        val csvFile=File("C:\\Users\\rony\\Documents\\SD-tests\\hw2\\hw2.csv")
         var toprow ="ClassName,TestName,Result,Duration(ms)\n"
 
 
@@ -64,7 +64,7 @@ tasks.test{
             }
         })
     }
-*/
+
 }
 
 
