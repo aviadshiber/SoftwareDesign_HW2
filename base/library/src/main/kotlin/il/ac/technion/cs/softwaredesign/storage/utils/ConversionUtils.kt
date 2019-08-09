@@ -17,12 +17,12 @@ object ConversionUtils {
     }
 
     fun localDateTimeToBytes(localDateTime: LocalDateTime):ByteArray{
-        val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss:SSS")
+        val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss:SSSSSSS")
         return localDateTime.format(formatter).toByteArray()
     }
 
     fun byteArrayToLocalDateTime(bytes: ByteArray):LocalDateTime{
-        val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss:SSS")
+        val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss:SSSSSSS")
         return LocalDateTime.parse(String(bytes), formatter)
     }
 }

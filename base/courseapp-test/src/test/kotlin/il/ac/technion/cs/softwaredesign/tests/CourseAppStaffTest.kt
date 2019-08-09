@@ -7,281 +7,393 @@ import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.present
 import il.ac.technion.cs.softwaredesign.*
 import il.ac.technion.cs.softwaredesign.exceptions.InvalidTokenException
+import il.ac.technion.cs.softwaredesign.exceptions.NoSuchEntityException
 import il.ac.technion.cs.softwaredesign.exceptions.UserNotAuthorizedException
 import il.ac.technion.cs.softwaredesign.messages.MediaType
+import il.ac.technion.cs.softwaredesign.messages.Message
 import il.ac.technion.cs.softwaredesign.messages.MessageFactory
 import il.ac.technion.cs.softwaredesign.storage.SecureStorageModule
-import io.mockk.confirmVerified
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
-import java.time.Duration.ofSeconds
+import org.junit.jupiter.api.*
+
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
+import java.time.Duration
+import java.time.LocalDateTime
+import java.util.*
 import java.util.concurrent.CompletableFuture
+import kotlin.streams.toList
 
 class CourseAppStaffTest {
-    private val injector = Guice.createInjector(CourseAppModule(), SecureStorageModule())
+    private var injector = Guice.createInjector(CourseAppModule(), SecureStorageModule())
 
     init {
         injector.getInstance<CourseAppInitializer>().setup().join()
     }
 
-    private val courseApp = injector.getInstance<CourseApp>()
-    private val courseAppStatistics = injector.getInstance<CourseAppStatistics>()
-    private val messageFactory = injector.getInstance<MessageFactory>()
+    private var courseApp = injector.getInstance<CourseApp>()
+    private var courseAppStatistics = injector.getInstance<CourseAppStatistics>()
+    private var messageFactory = injector.getInstance<MessageFactory>()
 
-    @Test
-    fun `after login, a user is logged in`() {
-        val token = courseApp.login("gal", "hunter2")
-                .thenCompose { courseApp.login("imaman", "31337") }
-                .thenCompose { courseApp.login("matan", "s3kr1t") }
-                .join()
+    private val MESSAGE_IDX_IN_FILE = 2
+    private fun getDefaultMessage() : Message = messageFactory.create(MediaType.TEXT, stringToByteArray("staff message")).get()
 
-        assertThat(runWithTimeout(ofSeconds(10)) { courseApp.isUserLoggedIn(token, "gal").join() },
-                present(isTrue))
+    @BeforeEach
+    fun doSetup()
+    {
+        injector = Guice.createInjector(CourseAppModule(), SecureStorageModule())
+        injector.getInstance<CourseAppInitializer>().setup().join()
+        courseApp = injector.getInstance<CourseApp>()
+        courseAppStatistics = injector.getInstance<CourseAppStatistics>()
+        messageFactory = injector.getInstance<MessageFactory>()
+
     }
 
-    @Test
-    fun `an authentication token is invalidated after logout`() {
-        val token = courseApp.login("matan", "s3kr1t")
-                .thenCompose { token -> courseApp.logout(token).thenApply { token } }
-                .join()
+    @Nested
+    inner class BasicTest {
 
-        assertThrows<InvalidTokenException> {
-            runWithTimeout(ofSeconds(10)) {
-                courseApp.isUserLoggedIn(token, "matan").joinException()
-            }
-        }
-    }
+        @Test
+        fun `add listener returns as expected`() {
 
-    @Test
-    fun `administrator can create channel and is a member of it`() {
-        val administratorToken = courseApp.login("admin", "admin")
-                .thenCompose { token -> courseApp.channelJoin(token, "#mychannel").thenApply { token } }
-                .join()
-
-        assertThat(runWithTimeout(ofSeconds(10)) {
-            courseApp.isUserInChannel(administratorToken, "#mychannel", "admin").join()
-        }, isTrue)
-    }
-
-    @Test
-    fun `non-administrator can not make administrator`() {
-        val nonAdminToken = courseApp.login("admin", "admin")
-                .thenCompose { courseApp.login("matan", "1234") }
-                .thenCompose { token -> courseApp.login("gal", "hunter2").thenApply { token } }
-                .join()
-
-        assertThrows<UserNotAuthorizedException> {
-            runWithTimeout(ofSeconds(10)) {
-                courseApp.makeAdministrator(nonAdminToken, "gal").joinException()
-            }
-        }
-    }
-
-    @Test
-    fun `non-administrator can join existing channel and be made operator`() {
-        val adminToken = courseApp.login("admin", "admin")
-                .thenCompose { adminToken ->
-                    courseApp.login("matan", "1234")
-                            .thenApply { Pair(adminToken, it) }
+            assertWithTimeout {
+                var testToken: String? = "NONE"
+                assertDoesNotThrow {
+                    courseApp.login("user2", "pass").thenCompose { token ->
+                        testToken = token
+                        courseApp.addListener(token
+                                , getDefaultCallback())
+                    }.joinException()
                 }
-                .thenCompose { (adminToken, otherToken) ->
-                    courseApp.channelJoin(adminToken, "#test")
-                            .thenCompose { courseApp.channelJoin(otherToken, "#test") }
-                            .thenCompose { courseApp.channelMakeOperator(adminToken, "#test", "matan") }
-                            .thenApply { adminToken }
-                }.join()
+                assertThrows<InvalidTokenException> {
+                    courseApp.addListener("932901ds" + testToken + "hdshg", getDefaultCallback()).joinException()
+                }
+            }
+        }
 
-        assertThat(runWithTimeout(ofSeconds(10)) {
-            courseApp.isUserInChannel(adminToken, "#test", "matan").join()
-        }, isTrue)
+        @Test
+        fun `remove listener returns as expected`() {
+            assertWithTimeout {
+                var testToken: String = "NONE"
+                assertDoesNotThrow {
+                    courseApp.login("user2", "pass").thenCompose { token ->
+                        testToken = token
+                        courseApp.addListener(token
+                                , getDefaultCallback())
+                    }.thenCompose { courseApp.removeListener(testToken, getDefaultCallback()) }.joinException()
+                }
+
+                assertThrows<InvalidTokenException> {
+                    courseApp.removeListener("932901ds" + testToken + "hdshg", getDefaultCallback()).joinException()
+                }
+
+                assertThrows<NoSuchEntityException> {
+                    courseApp.removeListener(testToken, getDefaultCallback()).joinException()
+                }
+            }
+
+        }
+
+        @Disabled
+        @Test
+        fun `channel send returns as expected`() {
+            val adminToken = courseApp.login("admin", "pass").get()
+            val token = courseApp.login("ig32","236606").get()
+            val message = getDefaultMessage()
+
+            assertWithTimeout {
+                assertDoesNotThrow {
+                    courseApp.channelJoin(adminToken, "#sd_channel").thenCompose {
+                        courseApp.channelSend(adminToken, "#sd_channel", message)
+                    }.joinException()
+                }
+
+                assertThrows<InvalidTokenException> {courseApp.channelSend("dsadads" + adminToken + "45hdshg",
+                        "#sd_channel", message).joinException()  }
+                assertThrows<NoSuchEntityException> {courseApp.channelSend(adminToken,
+                        "#hagana_channel", message).joinException()  }
+                assertThrows<UserNotAuthorizedException> {courseApp.channelSend(token,
+                        "#sd_channel", message).joinException()  }
+                assertDoesNotThrow {
+                    courseApp.channelJoin(token, "#sd_channel").thenCompose {
+                        courseApp.channelSend(token, "#sd_channel", message)
+                    }.joinException()
+                }
+            }
+        }
+
+        @Test
+        fun `broadcast returns as expected`()
+        {
+            val userMap = loadDataForTestWithoutMessages(courseApp,"small_test")
+            val message = getDefaultMessage()
+            assertWithTimeout{
+                assertThrows<InvalidTokenException>{courseApp.broadcast(
+                        userMap["User0"]!!.token+"something_that_should_make_token_illegal*&^",message).joinException()}
+                assertThrows<UserNotAuthorizedException>{courseApp.broadcast(
+                        userMap["User1"]!!.token,message).joinException()}
+                assertDoesNotThrow{
+                    courseApp.broadcast(userMap["MainAdmin"]!!.token, message).joinException()
+                }
+
+            }
+
+        }
+
+        @Test
+        fun `fetch message returns as expected`()
+        {
+            val adminToken = courseApp.login("admin", "pass").get()
+            val token = courseApp.login("ig32","236606").get()
+            val token2 = courseApp.login("user","pass").get()
+            val message = getDefaultMessage()
+            val message2 = getDefaultMessage()
+            courseApp.channelJoin(adminToken, "#sd_channel").thenCompose{
+                courseApp.channelJoin(token,"#sd_channel")}
+                    .thenCompose { courseApp.channelSend(adminToken,"#sd_channel", message) }
+                    .thenCompose {courseApp.privateSend(adminToken, "ig32", message2)}.join()
+            assertWithTimeout{
+                val messageReceived = courseApp.fetchMessage(token, message.id).join()
+                assertThat(messageReceived.second.created == message.created &&
+                        messageReceived.second.media == message.media &&
+                        messageReceived.second.contents.contentEquals(message.contents), isTrue)
+                assertThrows<InvalidTokenException>{courseApp.fetchMessage(token+"blablablasdsad", message.id).joinException()}
+                assertThrows<NoSuchEntityException>{courseApp.fetchMessage(token, message.id+message2.id+459201).joinException()}
+                assertThrows<NoSuchEntityException>{courseApp.fetchMessage(token, message2.id).joinException()}
+                assertThrows<UserNotAuthorizedException>{courseApp.fetchMessage(token2, message.id).joinException()}
+            }
+
+
+        }
+
+        @Test
+        fun `broadcast delivers the message correctly`()
+        {
+            val userMap = loadDataForTestWithoutMessages(courseApp,"small_test")
+            val message = getDefaultMessage()
+            courseApp.broadcast(userMap["MainAdmin"]!!.token, message).join()
+            assertWithTimeout {
+                val user0BroadcastMsgContents = userMap["User0"]!!.messages[0].second.contents
+                assertThat(userMap["User0"]!!.messages[0].second.contents.contentEquals(user0BroadcastMsgContents), isTrue)
+                assertThat(userMap["User6"]!!.messages[0].second.contents.contentEquals(user0BroadcastMsgContents), isTrue)
+                assertThat(userMap["User28"]!!.messages[0].second.contents.contentEquals(user0BroadcastMsgContents), isTrue)
+            }
+        }
+
+        @Test
+        fun `messages delivered before a listener is added are still forwarded to the callback`()
+        {
+            val adminToken = courseApp.login("admin", "pass").get()
+            val token = courseApp.login("ig32","236606").get()
+            val message = getDefaultMessage()
+            val message2 = getDefaultMessage()
+            val message3 = getDefaultMessage()
+            var currentVal = 0
+            var currentVal2 = 0
+            var currentVal3 = 0
+            courseApp.channelJoin(adminToken, "#sd_channel").thenCompose{
+                courseApp.channelJoin(token,"#sd_channel")}.thenCompose { courseApp.channelSend(adminToken,"#sd_channel", message) }
+                    .thenCompose{courseApp.privateSend(adminToken,"ig32",message2)}
+                    .thenCompose{courseApp.broadcast(adminToken, message3)}
+                    .thenCompose { courseApp.addListener(token,
+                            {
+                              source,msg->
+                                if(source[0] == '@')
+                                    currentVal = 1
+                                else if(source.equals("BROADCAST"))
+                                    currentVal2 = 7
+                                else
+                                    currentVal3 = 2
+                                CompletableFuture.completedFuture(Unit)
+                            }
+                            ) }.join()
+            currentVal += currentVal2 + currentVal3
+            assertThat(currentVal, equalTo(10))
+        }
+
+        @Test
+        fun `messages delivered before a 2nd listener is added aren't forwarded to it`()
+        {
+            val adminToken = courseApp.login("admin", "pass").get()
+            val token = courseApp.login("ig32","236606").get()
+            val message = getDefaultMessage()
+            val message2 = getDefaultMessage()
+            val message3 = getDefaultMessage()
+            var currentVal = 0
+            var currentVal2 = 0
+            var currentVal3 = 0
+            courseApp.channelJoin(adminToken, "#sd_channel").thenCompose { courseApp.addListener(token,
+                    {
+                        source,_->
+                        if(source[0] == '@')
+                            currentVal =1
+                        else if(source == "BROADCAST")
+                            currentVal2 = 5
+                        else
+                            currentVal3 = 2
+                        CompletableFuture.completedFuture(Unit)
+                    }
+            ) }.thenCompose{
+                courseApp.channelJoin(token,"#sd_channel")}.thenCompose { courseApp.channelSend(adminToken,"#sd_channel", message) }
+                    .thenCompose{courseApp.privateSend(adminToken,"ig32",message2)}
+                    .thenCompose{courseApp.broadcast(adminToken, message3)}
+                    .thenCompose{courseApp.addListener(token,
+                            {
+                                _,_->
+                                currentVal += 500
+                                CompletableFuture.completedFuture(Unit)
+                            })}.
+                            join()
+            currentVal += currentVal2 + currentVal3
+            assertThat(currentVal, equalTo(8))
+        }
+		
+		@Test
+    fun `received date is the same for both listeners for a user's message`()
+    {
+		var date1 : LocalDateTime? = null
+		var date2 : LocalDateTime? = null
+        val adminToken = courseApp.login("admin", "pass").get()
+        val token = courseApp.login("ig32","236606").get()
+        val message = getDefaultMessage()
+        courseApp.addListener(token,
+                {
+                    _,msg->
+                    date1=msg.received
+                    CompletableFuture.completedFuture(Unit)
+                }).thenCompose {
+            courseApp.addListener(token,
+                    {
+                        _,msg->
+                        date2=msg.received
+                        CompletableFuture.completedFuture(Unit)
+                    })
+        }.thenCompose{courseApp.privateSend(adminToken,"ig32",message)}.join()
+
+        assertWithTimeout{
+            
+            assertThat(date1, present(equalTo(date2)))
+        }
+    }
     }
 
-    @Test
-    fun `user is not in channel after parting from it`() {
-        val (adminToken, _) = courseApp.login("admin", "admin")
-                .thenCompose { adminToken ->
-                    courseApp.login("matan", "1234").thenApply { Pair(adminToken, it) }
-                }.thenCompose { pair ->
-                    val (adminToken, otherToken) = pair
-                    courseApp.channelJoin(adminToken, "#mychannel")
-                            .thenCompose { courseApp.channelJoin(otherToken, "#mychannel") }
-                            .thenCompose { courseApp.channelPart(otherToken, "#mychannel") }
-                            .thenApply { pair }
-                }.join()
+    
 
-        assertThat(runWithTimeout(ofSeconds(10)) {
-            courseApp.isUserInChannel(adminToken, "#mychannel", "matan").join()
-        }, isFalse)
-    }
+    @Nested
+    inner class MainSmallTest
+    {
+        @Test
+        fun `check private messages received`()
+        {
 
-    @Test
-    fun `user is not in channel after being kicked`() {
-        val (adminToken, _) = courseApp.login("admin", "admin")
-                .thenCompose { adminToken ->
-                    courseApp.login("matan", "4321").thenApply { Pair(adminToken, it) }
-                }.thenCompose { pair ->
-                    val (adminToken, otherToken) = pair
-                    courseApp.channelJoin(adminToken, "#236700")
-                            .thenCompose { courseApp.channelJoin(otherToken, "#236700") }
-                            .thenCompose { courseApp.channelKick(adminToken, "#236700", "matan") }
-                            .thenApply { pair }
-                }.join()
+            val userMap = loadDataForTest(courseApp, messageFactory, "small_test")
+            assertWithTimeout{
+                val userMessagesPairs = userMap["User29"]!!.messages.stream().filter{it.first[0] == '@'}.toList()
+                val messages = userMessagesPairs.stream().map { it.second }
+                        .toList()
+                assertThat(messages.stream().map{it.media}.toList(), containsElementsInOrder(MediaType.FILE,
+                        MediaType.TEXT, MediaType.PICTURE,MediaType.AUDIO, MediaType.REFERENCE, MediaType.TEXT))
+                assertThat(messages.stream().map{byteArrayToString(it.contents)!!.split('_')[MESSAGE_IDX_IN_FILE].toInt() }.toList(),
+                        containsElementsInOrder(0,3,1,1,0,2))
+                val userSourcesNumbers = userMessagesPairs.stream().map{it.first.split('r')[1].toInt()}.toList()
+                assertThat(userSourcesNumbers,containsElementsInOrder(4,46,68,69,86,96))
 
-        assertThat(runWithTimeout(ofSeconds(10)) {
-            courseApp.isUserInChannel(adminToken, "#236700", "matan").join()
-        }, isFalse)
-    }
+            }
+        }
 
-    @Test
-    fun `total user count in a channel is correct with a single user`() {
-        val adminToken = courseApp.login("admin", "admin")
-                .thenCompose { token -> courseApp.channelJoin(token, "#test").thenApply { token } }
-                .join()
+        @Test
+        fun `check listener was called on channel messages`()
+        {
+            val userMap = loadDataForTest(courseApp, messageFactory, "small_test")
+            assertWithTimeout{
+                val user7MessagesFromChnOne = userMap["User7"]!!.messages.
+                        filter{it.first.split('@')[0] == "#channel_1"}
+                assertThat(user7MessagesFromChnOne.stream().filter{it.first.split('@')[1] == "User72"}
+                        .map{it.second.media}.toList(),containsElementsInOrder(MediaType.PICTURE, MediaType.PICTURE, MediaType.FILE
+                ,MediaType.STICKER))
 
-        assertThat(runWithTimeout(ofSeconds(10)) {
-            courseApp.numberOfTotalUsersInChannel(adminToken, "#test").join()
-        }, equalTo(1L))
-    }
+                assertThat(user7MessagesFromChnOne.stream().filter{it.second.media == MediaType.TEXT}
+                        .map{it.first.split('r')[1].toInt()}.toList(),
+                        containsElementsInOrder(30, 37, 38, 42, 42, 43, 53, 53, 55, 63, 73, 79, 85, 86, 90))
 
-    @Test
-    fun `active user count in a channel is correct with a single user`() {
-        val adminToken = courseApp.login("admin", "admin")
-                .thenCompose { token -> courseApp.channelJoin(token, "#test").thenApply { token } }
-                .join()
+            }
+        }
 
-        assertThat(runWithTimeout(ofSeconds(10)) {
-            courseApp.numberOfActiveUsersInChannel(adminToken, "#test").join()
-        }, equalTo(1L))
-    }
+        @Test
+        fun `pending messages statistic test`()
+        {
+            val userMap = loadDataForTest(courseApp, messageFactory, "medium_test")
+            assertWithTimeout{
+                assertThat(courseAppStatistics.pendingMessages().join(), equalTo(3.toLong()))
+            }
+        }
 
-    @Test
-    fun `logged in user count is correct when no user is logged in`() {
-        assertThat(
-                runWithTimeout(ofSeconds(10)) { courseAppStatistics.loggedInUsers().join() },
-                equalTo(0L))
-    }
+        @Test
+        fun `pending messages statistic with broadcast`()
+        {
+            val userMap = loadDataForTest(courseApp, messageFactory, "medium_test")
+            val message = getDefaultMessage()
+            courseApp.broadcast(userMap["MainAdmin"]!!.token, message).join()
+            assertWithTimeout{
+                        val pendingMessages = courseAppStatistics.pendingMessages().join()
+                         assertThat(pendingMessages == 4.toLong(),
+                                 isTrue) {"Amount of pending messages is $pendingMessages but expected either 4"}
 
-    @Test
-    fun `total user count is correct when no users exist`() {
-        assertThat(
-                runWithTimeout(ofSeconds(10)) { courseAppStatistics.totalUsers().join() },
-                equalTo(0L))
-    }
+            }
+        }
 
-    @Test
-    fun `top 10 channel list does secondary sorting by creation`() {
-        courseApp.login("admin", "admin")
-                .thenCompose { adminToken -> courseApp.login("matan", "4321").thenApply { Pair(adminToken, it) } }
-                .thenCompose { (adminToken, otherToken) ->
-                    courseApp.makeAdministrator(adminToken, "matan")
-                            .thenCompose { courseApp.channelJoin(adminToken, "#test") }
-                            .thenCompose { courseApp.channelJoin(otherToken, "#other") }
-                }.join()
+        @Test
+        fun `channel messages statistic test`()
+        {
+            val userMap = loadDataForTest(courseApp, messageFactory, "medium_test")
+            assertWithTimeout{
+                assertThat(courseAppStatistics.channelMessages().join(), equalTo(392.toLong()))
+            }
+        }
 
-        runWithTimeout(ofSeconds(10)) {
-            assertThat(courseAppStatistics.top10ChannelsByUsers().join(),
-                    containsElementsInOrder("#test", "#other"))
+        @Test
+        fun `top 10 channels by messages with less then 10 channels`()
+        {
+            val userMap = loadDataForTest(courseApp, messageFactory, "medium_test")
+            assertWithTimeout({
+                assertThat(courseAppStatistics.top10ChannelsByMessages().join(),
+                        containsElementsInOrder("#channel_2", "#channel_4", "#channel_3", "#channel_1", "#channel_0"))
+            }, Duration.ofSeconds(15))
+
+        }
+
+        @Test
+        fun `course app after reconstruction doesn't save listeners`()
+        {
+            val userMap = loadDataForTest(courseApp, messageFactory, "small_test")
+            var value : Int = 0
+            courseApp.login("MyUser","pass").thenCompose { courseApp.addListener(it,
+                    {
+                        src,msg->
+                        value += 10
+                        CompletableFuture.completedFuture(Unit)
+                    }
+                    ) }.join()
+            courseApp = injector.getInstance<CourseApp>()
+            courseApp.privateSend(userMap["User1"]!!.token,"MyUser",getDefaultMessage()).join()
+            assertWithTimeout{
+               assertThat(value,equalTo(0))
+            }
         }
     }
 
-    @Test
-    fun `top 10 channel list counts only logged in users`() {
-        courseApp.login("admin", "admin")
-                .thenCompose { adminToken -> courseApp.login("matan", "4321").thenApply { Pair(adminToken, it) } }
-                .thenCompose { (adminToken, otherToken) ->
-                    courseApp.makeAdministrator(adminToken, "matan")
-                            .thenCompose { courseApp.channelJoin(adminToken, "#test") }
-                            .thenCompose { courseApp.channelJoin(otherToken, "#other") }
-                            .thenCompose { courseApp.logout(otherToken) }
-                }.join()
+    @Nested
+    inner class MainLargeTest
+    {
 
-        runWithTimeout(ofSeconds(10)) {
-            assertThat(courseAppStatistics.top10ActiveChannelsByUsers().join(),
-                    containsElementsInOrder("#test", "#other"))
-        }
-    }
+        @Test
+        fun `top 10 channels by messages returns correctly`()
+        {
+            val userMap = loadDataForTest(courseApp, messageFactory, "large_test")
+            assertWithTimeout({
+                assertThat(courseAppStatistics.top10ChannelsByMessages().join(),
+                        containsElementsInOrder("#channel_4", "#channel_2", "#channel_11", "#channel_16", "#channel_17", "#channel_27",
+                                "#channel_28", "#channel_8",  "#channel_20", "#channel_22"))
+            }, Duration.ofSeconds(28))
 
-    @Test
-    fun `top 10 user list does secondary sorting by creation`() {
-        courseApp.login("admin", "admin")
-                .thenCompose { adminToken ->
-                    courseApp.login("matan", "4321").thenApply { Pair(adminToken, it) }
-                }.thenCompose { (adminToken, otherToken) ->
-                    courseApp.makeAdministrator(adminToken, "matan")
-                            .thenCompose { courseApp.channelJoin(adminToken, "#test") }
-                            .thenCompose { courseApp.channelJoin(otherToken, "#other") }
-                }.join()
-
-        runWithTimeout(ofSeconds(10)) {
-            assertThat(courseAppStatistics.top10UsersByChannels().join(),
-                    containsElementsInOrder("admin", "matan"))
-        }
-    }
-
-    @Test
-    fun `private message received successfully`() {
-        val listener = mockk<ListenerCallback>()
-        every { listener(any(), any()) }.returns(CompletableFuture.completedFuture(Unit))
-
-        val (token, message) = courseApp.login("admin", "admin")
-                .thenCompose { adminToken ->
-                    courseApp.login("gal", "hunter2").thenApply { Pair(adminToken, it) }
-                }.thenCompose { (adminToken, nonAdminToken) ->
-                    courseApp.addListener(nonAdminToken, listener)
-                            .thenCompose { messageFactory.create(MediaType.TEXT, "hello, world\n".toByteArray()) }
-                            .thenApply { message -> Pair(adminToken, message) }
-                }.join()
-
-        runWithTimeout(ofSeconds(10)) {
-            courseApp.privateSend(token, "gal", message).join()
-            assertEquals(0, courseAppStatistics.pendingMessages().join())
         }
 
-        verify {
-            listener(match { it == "@admin" },
-                    match { it.contents contentEquals "hello, world\n".toByteArray() })
-        }
-        confirmVerified(listener)
-    }
-
-    @Test
-    fun `channel message received successfully`() {
-        val listener = mockk<ListenerCallback>()
-        every { listener(any(), any()) }.returns(CompletableFuture.completedFuture(Unit))
-
-        val (token, message) = courseApp.login("admin", "admin")
-                .thenCompose { adminToken ->
-                    courseApp.login("gal", "hunter2").thenApply { Pair(adminToken, it) }
-                }.thenCompose { (adminToken, userToken) ->
-                    courseApp.addListener(userToken, listener)
-                            .thenCompose { courseApp.channelJoin(adminToken, "#jokes") }
-                            .thenCompose { courseApp.channelJoin(userToken, "#jokes") }
-                            .thenCompose { messageFactory.create(MediaType.TEXT, "why did the chicken cross the road?".toByteArray()) }
-                            .thenApply { message -> Pair(adminToken, message) }
-                }.join()
-
-        runWithTimeout(ofSeconds(10)) { courseApp.channelSend(token, "#jokes", message).join() }
-
-        verify {
-            listener(match { it == "#jokes@admin" },
-                    match { it.contents contentEquals "why did the chicken cross the road?".toByteArray() })
-        }
-        confirmVerified(listener)
-    }
-
-    @Test
-    fun `there is 1 pending message after privateSend with no listener`() {
-        courseApp.login("admin", "admin")
-                .thenCompose { courseApp.login("gal", "hunter2") }
-                .thenCompose { userToken ->
-                    messageFactory.create(MediaType.TEXT, "how many programmers does it take to change a light-bulb?".toByteArray())
-                            .thenCompose { msg -> courseApp.privateSend(userToken, "admin", msg) }
-                }.join()
-
-        assertEquals(1, runWithTimeout(ofSeconds(10)) { courseAppStatistics.pendingMessages().join() })
     }
 }

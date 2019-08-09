@@ -135,7 +135,7 @@ class ChannelManager
                 .thenCompose {currentValue->
                     val newValue=1L+currentValue
                     val nextValue= Pair(currentValue, newValue)
-                    channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS, newValue).thenApply { nextValue }
+                    channelStorage.setPropertyLongToChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MESSAGES, newValue).thenApply { nextValue }
                 }.thenApply {
                     (currentValue, newValue)->
                     updateKeyInTree(TREE_CHANNELS_MSG_COUNT, channelId, currentValue, newValue)
@@ -144,7 +144,7 @@ class ChannelManager
 
     override fun getNumberOfMsgsInChannel(channelId: Long): CompletableFuture<Long> {
         return validateChannelIdFuture(channelId).thenCompose {
-            channelStorage.getPropertyLongByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MEMBERS) }
+            channelStorage.getPropertyLongByChannelId(channelId, MANAGERS_CONSTS.CHANNEL_NR_MESSAGES) }
                 .thenApply { it ?: throw IllegalArgumentException("channel id is valid but returned null") }
     }
 
